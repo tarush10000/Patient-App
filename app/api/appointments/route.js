@@ -65,16 +65,51 @@ export async function POST(request) {
             );
         }
 
-        // Check if slot is already booked
-        const existingAppointment = await Appointment.findOne({
+        // Parse appointment date and time
+        const appointmentDateTime = new Date(appointmentDate);
+        const [slotTime, period] = timeSlot.split(' - ')[0].split(' ');
+        const [slotHours, slotMinutes] = slotTime.split(':').map(Number);
+
+        let hours = slotHours;
+        if (period === 'PM' && slotHours !== 12) hours += 12;
+        if (period === 'AM' && slotHours === 12) hours = 0;
+
+        appointmentDateTime.setHours(hours, slotMinutes, 0, 0);
+
+        // Check if appointment is within 2 hours from now
+        const now = new Date();
+        const diffMs = appointmentDateTime - now;
+        const diffHours = diffMs / (1000 * 60 * 60);
+
+        if (diffHours < 2) {
+            return NextResponse.json(
+                { error: 'Appointments must be booked at least 2 hours in advance. Please choose a later time slot.' },
+                { status: 400 }
+            );
+        }
+
+        // Define slot capacities
+        const slotCapacities = {
+            '10:30 AM - 11:30 AM': 4,
+            '11:30 AM - 12:30 PM': 4,
+            '12:30 PM - 1:30 PM': 4,
+            '1:30 PM - 2:00 PM': 2,
+            '4:30 PM - 5:30 PM': 4,
+            '5:30 PM - 6:00 PM': 2
+        };
+
+        const capacity = slotCapacities[timeSlot] || 1;
+
+        // Count existing appointments for this slot
+        const existingCount = await Appointment.countDocuments({
             appointmentDate: new Date(appointmentDate),
             timeSlot,
-            status: 'upcoming'
+            status: { $in: ['upcoming', 'seen'] }
         });
 
-        if (existingAppointment) {
+        if (existingCount >= capacity) {
             return NextResponse.json(
-                { error: 'This time slot is already booked' },
+                { error: 'This time slot is fully booked. Please select another time slot.' },
                 { status: 409 }
             );
         }

@@ -93,6 +93,22 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
         return today.toISOString().split('T')[0];
     };
 
+    const calculateApproxTime = (slotTime, bookingsCount) => {
+        const [time, period] = slotTime.split(' - ')[0].split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+
+        let totalMinutes = hours * 60 + minutes + (bookingsCount * 15);
+        if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+        if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+        const newHours = Math.floor(totalMinutes / 60) % 24;
+        const newMinutes = totalMinutes % 60;
+        const newPeriod = newHours >= 12 ? 'PM' : 'AM';
+        const displayHours = newHours > 12 ? newHours - 12 : (newHours === 0 ? 12 : newHours);
+
+        return `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
+    };
+
     // Get maximum date (3 months from now)
     const getMaxDate = () => {
         const maxDate = new Date();
@@ -143,7 +159,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 value={formData.fullName}
                                 onChange={handleInputChange}
                                 placeholder="Enter your full name"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 required
                             />
                         </div>
@@ -184,7 +200,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 onChange={handleInputChange}
                                 min={getMinDate()}
                                 max={getMaxDate()}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 required
                             />
                         </div>
@@ -208,20 +224,33 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                             <button
                                                 key={slot.time}
                                                 type="button"
-                                                onClick={() => slot.available && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
-                                                disabled={!slot.available}
+                                                onClick={() => slot.status === 'available' && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
+                                                disabled={slot.status !== 'available'}
                                                 className={`p-3 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
-                                                        ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                                        : slot.available
-                                                            ? 'border-gray-300 hover:border-blue-400 text-gray-700'
-                                                            : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                    ? 'border-blue-600 bg-blue-50 text-blue-700'
+                                                    : slot.status === 'available'
+                                                        ? 'border-green-500 bg-white hover:border-blue-400 text-gray-700'
+                                                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
                                                     }`}
                                             >
-                                                {slot.time}
-                                                {!slot.available && (
-                                                    <span className="block text-xs mt-1">
-                                                        {slot.status === 'blocked' ? 'Blocked' : 'Booked'}
+                                                <div className="flex items-center justify-between mb-1">
+                                                    <span>{slot.time.split(' - ')[0]}</span>
+                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${slot.status === 'available'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : slot.status === 'blocked'
+                                                            ? 'bg-gray-200 text-gray-700'
+                                                            : 'bg-red-100 text-red-800'
+                                                        }`}>
+                                                        {slot.available}/{slot.capacity} available
                                                     </span>
+                                                </div>
+                                                <div className="text-xs text-gray-500">
+                                                    {slot.time.split(' - ')[1]}
+                                                </div>
+                                                {slot.status === 'available' && slot.booked > 0 && (
+                                                    <p className="text-xs text-blue-600 mt-1">
+                                                        Approx: {calculateApproxTime(slot.time, slot.booked)}
+                                                    </p>
                                                 )}
                                             </button>
                                         ))}
@@ -242,7 +271,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 name="consultationType"
                                 value={formData.consultationType}
                                 onChange={handleInputChange}
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 required
                             >
                                 <option value="">Select Service Type</option>
@@ -269,7 +298,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 onChange={handleInputChange}
                                 placeholder="Any specific concerns or additional information you'd like to share..."
                                 rows="3"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 bg-white"
                             />
                         </div>
 

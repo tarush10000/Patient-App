@@ -32,14 +32,14 @@ export async function GET(request) {
             });
         }
 
-        // Define all possible time slots
+        // Define all possible time slots with capacity
         const allTimeSlots = [
-            '10:30 AM - 11:30 AM',
-            '11:30 AM - 12:30 PM',
-            '12:30 PM - 1:30 PM',
-            '1:30 PM - 2:00 PM',
-            '4:30 PM - 5:30 PM',
-            '5:30 PM - 6:00 PM'
+            { time: '10:30 AM - 11:30 AM', capacity: 4 },
+            { time: '11:30 AM - 12:30 PM', capacity: 4 },
+            { time: '12:30 PM - 1:30 PM', capacity: 4 },
+            { time: '1:30 PM - 2:00 PM', capacity: 2 },
+            { time: '4:30 PM - 5:30 PM', capacity: 4 },
+            { time: '5:30 PM - 6:00 PM', capacity: 2 }
         ];
 
         // Get booked appointments for this date
@@ -53,25 +53,33 @@ export async function GET(request) {
             date: targetDate
         }).select('timeSlot');
 
-        const bookedTimeSlots = bookedAppointments.map(apt => apt.timeSlot);
         const blockedTimeSlots = blockedSlots.map(slot => slot.timeSlot);
 
+        // Count bookings per slot
+        const bookingCounts = {};
+        bookedAppointments.forEach(apt => {
+            bookingCounts[apt.timeSlot] = (bookingCounts[apt.timeSlot] || 0) + 1;
+        });
+
         // Calculate available slots
-        const availableSlots = allTimeSlots.filter(
-            slot => !bookedTimeSlots.includes(slot) && !blockedTimeSlots.includes(slot)
-        );
+        const slots = allTimeSlots.map(slot => {
+            const booked = bookingCounts[slot.time] || 0;
+            const available = slot.capacity - booked;
+            const isBlocked = blockedTimeSlots.includes(slot.time);
+
+            return {
+                time: slot.time,
+                capacity: slot.capacity,
+                booked: booked,
+                available: Math.max(0, available),
+                status: isBlocked ? 'blocked' : (available > 0 ? 'available' : 'full')
+            };
+        });
 
         return NextResponse.json({
             available: true,
             date: targetDate,
-            totalSlots: allTimeSlots.length,
-            availableSlots: availableSlots.length,
-            slots: allTimeSlots.map(slot => ({
-                time: slot,
-                available: availableSlots.includes(slot),
-                status: blockedTimeSlots.includes(slot) ? 'blocked' :
-                    bookedTimeSlots.includes(slot) ? 'booked' : 'available'
-            }))
+            slots: slots
         });
 
     } catch (error) {
