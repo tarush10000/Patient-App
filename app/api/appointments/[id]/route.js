@@ -47,7 +47,7 @@ export async function PATCH(request, { params }) {
     }
 }
 
-// DELETE appointment
+// DELETE appointment - ADMIN ONLY
 export async function DELETE(request, { params }) {
     try {
         const authResult = await authenticate(request);
@@ -55,8 +55,17 @@ export async function DELETE(request, { params }) {
             return NextResponse.json({ error: authResult.error }, { status: authResult.status });
         }
 
-        await connectDB();
         const { user } = authResult;
+
+        // Only admins can delete appointments
+        if (user.role !== 'admin') {
+            return NextResponse.json(
+                { error: 'Only administrators can delete appointments' },
+                { status: 403 }
+            );
+        }
+
+        await connectDB();
         const { id } = params;
 
         const appointment = await Appointment.findById(id);
@@ -65,21 +74,16 @@ export async function DELETE(request, { params }) {
             return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
         }
 
-        // Only patient who owns appointment, reception, or admin can delete
-        if (user.role === 'patient' && appointment.patientId.toString() !== user._id.toString()) {
-            return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-        }
-
         await appointment.deleteOne();
 
         return NextResponse.json({
-            message: 'Appointment cancelled successfully'
+            message: 'Appointment deleted successfully'
         });
 
     } catch (error) {
         console.error('Delete appointment error:', error);
         return NextResponse.json(
-            { error: 'Failed to cancel appointment' },
+            { error: 'Failed to delete appointment' },
             { status: 500 }
         );
     }

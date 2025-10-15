@@ -59,11 +59,34 @@ export async function POST(request) {
             );
         }
 
+        // Normalize the date to midnight UTC to avoid timezone issues
+        const blockDate = new Date(date);
+        blockDate.setHours(0, 0, 0, 0);
+
+        console.log('Blocking date:', blockDate.toISOString());
+
+        // Check if this date is already blocked
+        const existing = await BlockedDay.findOne({
+            date: {
+                $gte: blockDate,
+                $lt: new Date(blockDate.getTime() + 24 * 60 * 60 * 1000)
+            }
+        });
+
+        if (existing) {
+            return NextResponse.json(
+                { error: 'This day is already blocked' },
+                { status: 409 }
+            );
+        }
+
         const blockedDay = await BlockedDay.create({
-            date: new Date(date),
+            date: blockDate,
             reason,
             createdBy: user._id
         });
+
+        console.log('Created blocked day:', blockedDay);
 
         return NextResponse.json({
             message: 'Day blocked successfully',
@@ -80,6 +103,54 @@ export async function POST(request) {
         console.error('Block day error:', error);
         return NextResponse.json(
             { error: 'Failed to block day' },
+            { status: 500 }
+        );
+    }
+}
+
+// DELETE unblock a day
+export async function DELETE(request) {
+    try {
+        const authResult = await authenticate(request);
+        if (authResult.error) {
+            return NextResponse.json({ error: authResult.error }, { status: authResult.status });
+        }
+
+        const { user } = authResult;
+        const roleCheck = await authorizeRoles(user, ['admin']);
+        if (roleCheck.error) {
+            return NextResponse.json({ error: roleCheck.error }, { status: roleCheck.status });
+        }
+
+        await connectDB();
+
+        const { searchParams } = new URL(request.url);
+        const id = searchParams.get('id');
+
+        if (!id) {
+            return NextResponse.json(
+                { error: 'Blocked day ID is required' },
+                { status: 400 }
+            );
+        }
+
+        const blockedDay = await BlockedDay.findByIdAndDelete(id);
+
+        if (!blockedDay) {
+            return NextResponse.json(
+                { error: 'Blocked day not found' },
+                { status: 404 }
+            );
+        }
+
+        return NextResponse.json({
+            message: 'Day unblocked successfully'
+        });
+
+    } catch (error) {
+        console.error('Unblock day error:', error);
+        return NextResponse.json(
+            { error: 'Failed to unblock day' },
             { status: 500 }
         );
     }

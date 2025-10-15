@@ -21,8 +21,22 @@ export async function GET(request) {
         const targetDate = new Date(date);
         targetDate.setHours(0, 0, 0, 0);
 
+        // Check if it's Sunday (0 = Sunday in JavaScript)
+        if (targetDate.getDay() === 0) {
+            return NextResponse.json({
+                available: false,
+                reason: 'Clinic is closed on Sundays',
+                slots: []
+            });
+        }
+
         // Check if entire day is blocked
-        const blockedDay = await BlockedDay.findOne({ date: targetDate });
+        const blockedDay = await BlockedDay.findOne({
+            date: {
+                $gte: targetDate,
+                $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+            }
+        });
 
         if (blockedDay) {
             return NextResponse.json({
@@ -42,15 +56,21 @@ export async function GET(request) {
             { time: '5:30 PM - 6:00 PM', capacity: 2 }
         ];
 
-        // Get booked appointments for this date
+        // Get booked appointments for this date (only count upcoming and seen)
         const bookedAppointments = await Appointment.find({
-            appointmentDate: targetDate,
-            status: 'upcoming'
+            appointmentDate: {
+                $gte: targetDate,
+                $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+            },
+            status: { $in: ['upcoming', 'seen'] }
         }).select('timeSlot');
 
         // Get blocked slots for this date
         const blockedSlots = await BlockedSlot.find({
-            date: targetDate
+            date: {
+                $gte: targetDate,
+                $lt: new Date(targetDate.getTime() + 24 * 60 * 60 * 1000)
+            }
         }).select('timeSlot');
 
         const blockedTimeSlots = blockedSlots.map(slot => slot.timeSlot);

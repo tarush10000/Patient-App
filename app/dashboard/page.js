@@ -14,13 +14,29 @@ export default function DashboardPage() {
     const [loading, setLoading] = useState(true);
 
     useEffect(() => {
-        checkAuth();
-        fetchUpcomingAppointment();
+        checkAuthAndRedirect();
     }, []);
 
-    const checkAuth = () => {
+    const checkAuthAndRedirect = async () => {
         const token = api.getToken();
         if (!token) {
+            router.push('/login');
+            return;
+        }
+
+        try {
+            // Decode token to get user role
+            const payload = JSON.parse(atob(token.split('.')[1]));
+
+            // Redirect based on role
+            if (payload.role === 'admin' || payload.role === 'reception') {
+                router.push('/dashboard/staff');
+            } else {
+                // Patient dashboard - fetch their data
+                await fetchUpcomingAppointment();
+            }
+        } catch (error) {
+            console.error('Error checking auth:', error);
             router.push('/login');
         }
     };
@@ -49,6 +65,14 @@ export default function DashboardPage() {
         });
     };
 
+    if (loading) {
+        return (
+            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            </div>
+        );
+    }
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Header />
@@ -56,55 +80,49 @@ export default function DashboardPage() {
             <main className="max-w-4xl mx-auto p-4 pb-24">
                 <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back!</h2>
 
-                {loading ? (
-                    <div className="flex justify-center py-12">
-                        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+                <div className="space-y-4">
+                    {/* Upcoming Appointment Card */}
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 text-white shadow-lg">
+                        <h3 className="font-bold text-lg mb-3">Upcoming Appointment</h3>
+                        {upcomingAppointment ? (
+                            <div>
+                                <p className="text-2xl font-bold">{formatDate(upcomingAppointment.appointmentDate)}</p>
+                                <p className="text-sm opacity-90 mt-1">{upcomingAppointment.timeSlot}</p>
+                                <p className="text-sm opacity-90 mt-1 capitalize">
+                                    {upcomingAppointment.consultationType?.replace(/-/g, ' ')}
+                                </p>
+                            </div>
+                        ) : (
+                            <p>No upcoming appointments</p>
+                        )}
                     </div>
-                ) : (
-                    <div className="space-y-4">
-                        {/* Upcoming Appointment Card */}
-                        <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 text-white shadow-lg">
-                            <h3 className="font-bold text-lg mb-3">Upcoming Appointment</h3>
-                            {upcomingAppointment ? (
-                                <div>
-                                    <p className="text-2xl font-bold">{formatDate(upcomingAppointment.appointmentDate)}</p>
-                                    <p className="text-sm opacity-90 mt-1">{upcomingAppointment.timeSlot}</p>
-                                    <p className="text-sm opacity-90 mt-1 capitalize">
-                                        {upcomingAppointment.consultationType?.replace(/-/g, ' ')}
-                                    </p>
-                                </div>
-                            ) : (
-                                <p>No upcoming appointments</p>
-                            )}
-                        </div>
 
-                        {/* Quick Actions */}
-                        <div className="grid grid-cols-2 gap-4">
-                            <button
-                                onClick={() => router.push('/dashboard/appointments')}
-                                className="bg-blue-100 text-blue-800 p-6 rounded-xl font-semibold hover:bg-blue-200 transition flex flex-col items-center gap-2"
-                            >
-                                <Calendar size={32} />
-                                Book Appointment
-                            </button>
-                            <button
-                                onClick={() => router.push('/dashboard/billing')}
-                                className="bg-green-100 text-green-800 p-6 rounded-xl font-semibold hover:bg-green-200 transition flex flex-col items-center gap-2"
-                            >
-                                <FileText size={32} />
-                                View Bills
-                            </button>
-                        </div>
-
-                        {/* Health Tip */}
-                        <div className="bg-white rounded-xl p-6 shadow-md">
-                            <h3 className="font-bold text-lg mb-2">Health Tip of the Day</h3>
-                            <p className="text-gray-600">
-                                Remember to stay hydrated! Drinking enough water is crucial for overall health and well-being.
-                            </p>
-                        </div>
+                    {/* Quick Actions */}
+                    <div className="grid grid-cols-2 gap-4">
+                        <button
+                            onClick={() => router.push('/dashboard/appointments')}
+                            className="bg-blue-100 text-blue-800 p-6 rounded-xl font-semibold hover:bg-blue-200 transition flex flex-col items-center gap-2"
+                        >
+                            <Calendar size={32} />
+                            Book Appointment
+                        </button>
+                        <button
+                            onClick={() => router.push('/dashboard/billing')}
+                            className="bg-green-100 text-green-800 p-6 rounded-xl font-semibold hover:bg-green-200 transition flex flex-col items-center gap-2"
+                        >
+                            <FileText size={32} />
+                            View Bills
+                        </button>
                     </div>
-                )}
+
+                    {/* Health Tip */}
+                    <div className="bg-white rounded-xl p-6 shadow-md">
+                        <h3 className="font-bold text-lg mb-2">Health Tip of the Day</h3>
+                        <p className="text-gray-600">
+                            Remember to stay hydrated! Drinking enough water is crucial for overall health and well-being.
+                        </p>
+                    </div>
+                </div>
             </main>
 
             <BottomNav activeScreen="home" />

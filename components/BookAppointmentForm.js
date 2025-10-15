@@ -19,6 +19,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [dayBlockedMessage, setDayBlockedMessage] = useState('');
 
     const consultationTypes = [
         { value: 'routine-checkup', label: 'Routine Check-up' },
@@ -32,18 +33,25 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     useEffect(() => {
         if (formData.appointmentDate) {
             fetchAvailableSlots(formData.appointmentDate);
+        } else {
+            setAvailableSlots([]);
+            setDayBlockedMessage('');
         }
     }, [formData.appointmentDate]);
 
     const fetchAvailableSlots = async (date) => {
         setLoadingSlots(true);
+        setDayBlockedMessage('');
+        setError('');
+
         try {
             const response = await api.getAvailableSlots(date);
             if (response.available) {
                 setAvailableSlots(response.slots);
+                setDayBlockedMessage('');
             } else {
-                setError(`This date is unavailable: ${response.reason}`);
                 setAvailableSlots([]);
+                setDayBlockedMessage(response.reason || 'This date is unavailable');
             }
         } catch (err) {
             setError('Failed to fetch available slots');
@@ -55,7 +63,14 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
+
+        // Reset time slot when date changes
+        if (name === 'appointmentDate') {
+            setFormData(prev => ({ ...prev, [name]: value, timeSlot: '' }));
+        } else {
+            setFormData(prev => ({ ...prev, [name]: value }));
+        }
+
         setError('');
     };
 
@@ -77,6 +92,9 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
             await api.createAppointment(formData);
             setSuccess('Appointment booked successfully!');
 
+            // Refresh available slots after booking
+            await fetchAvailableSlots(formData.appointmentDate);
+
             setTimeout(() => {
                 if (onSuccess) onSuccess();
             }, 1500);
@@ -91,6 +109,13 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     const getMinDate = () => {
         const today = new Date();
         return today.toISOString().split('T')[0];
+    };
+
+    // Get maximum date (3 months from now)
+    const getMaxDate = () => {
+        const maxDate = new Date();
+        maxDate.setMonth(maxDate.getMonth() + 3);
+        return maxDate.toISOString().split('T')[0];
     };
 
     const calculateApproxTime = (slotTime, bookingsCount) => {
@@ -109,18 +134,11 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
         return `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
     };
 
-    // Get maximum date (3 months from now)
-    const getMaxDate = () => {
-        const maxDate = new Date();
-        maxDate.setMonth(maxDate.getMonth() + 3);
-        return maxDate.toISOString().split('T')[0];
-    };
-
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
+            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-center">
+                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-center rounded-t-2xl">
                     <h2 className="text-2xl font-bold">Book Appointment</h2>
                     {onCancel && (
                         <button
@@ -133,7 +151,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                 </div>
 
                 {/* Form */}
-                <div className="p-6">
+                <form onSubmit={handleSubmit} className="p-6">
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
                             {error}
@@ -146,7 +164,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         </div>
                     )}
 
-                    <div className="space-y-4">
+                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
                         {/* Full Name */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
@@ -159,7 +177,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 value={formData.fullName}
                                 onChange={handleInputChange}
                                 placeholder="Enter your full name"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                 required
                             />
                         </div>
@@ -171,7 +189,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 Phone Number *
                             </label>
                             <div className="flex gap-2">
-                                <span className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg">
+                                <span className="px-4 py-3 bg-gray-100 border border-gray-300 rounded-lg text-gray-700">
                                     +91
                                 </span>
                                 <input
@@ -180,6 +198,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                     value={formData.phone}
                                     onChange={handleInputChange}
                                     placeholder="Enter 10-digit mobile number"
+                                    pattern="[0-9]{10}"
                                     maxLength="10"
                                     className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                                     required
@@ -203,6 +222,9 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900 bg-white"
                                 required
                             />
+                            <p className="text-xs text-gray-500 mt-1">
+                                Note: Clinic is closed on Sundays
+                            </p>
                         </div>
 
                         {/* Time Slot */}
@@ -214,49 +236,64 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 </label>
 
                                 {loadingSlots ? (
-                                    <div className="text-center py-4">
+                                    <div className="text-center py-8">
                                         <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600"></div>
                                         <p className="text-sm text-gray-600 mt-2">Loading available slots...</p>
                                     </div>
+                                ) : dayBlockedMessage ? (
+                                    <div className="bg-red-50 border-2 border-red-200 rounded-lg p-6 text-center">
+                                        <p className="text-red-800 font-semibold">❌ {dayBlockedMessage}</p>
+                                        <p className="text-sm text-red-600 mt-2">Please select a different date</p>
+                                    </div>
                                 ) : availableSlots.length > 0 ? (
-                                    <div className="grid grid-cols-2 gap-2">
+                                    <div className="grid grid-cols-2 gap-3">
                                         {availableSlots.map((slot) => (
                                             <button
                                                 key={slot.time}
                                                 type="button"
                                                 onClick={() => slot.status === 'available' && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
                                                 disabled={slot.status !== 'available'}
-                                                className={`p-3 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
-                                                    ? 'border-blue-600 bg-blue-50 text-blue-700'
-                                                    : slot.status === 'available'
-                                                        ? 'border-green-500 bg-white hover:border-blue-400 text-gray-700'
-                                                        : 'border-gray-200 bg-gray-100 text-gray-400 cursor-not-allowed'
+                                                className={`p-4 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
+                                                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md'
+                                                        : slot.status === 'available'
+                                                            ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
+                                                            : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-1">
-                                                    <span>{slot.time.split(' - ')[0]}</span>
-                                                    <span className={`px-2 py-0.5 rounded-full text-xs font-semibold ${slot.status === 'available'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : slot.status === 'blocked'
-                                                            ? 'bg-gray-200 text-gray-700'
-                                                            : 'bg-red-100 text-red-800'
+                                                    <span className="font-semibold">{slot.time.split(' - ')[0]}</span>
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${slot.status === 'available'
+                                                            ? 'bg-green-100 text-green-800'
+                                                            : slot.status === 'blocked'
+                                                                ? 'bg-gray-200 text-gray-700'
+                                                                : 'bg-red-100 text-red-800'
                                                         }`}>
-                                                        {slot.available}/{slot.capacity} available
+                                                        {slot.available}/{slot.capacity}
                                                     </span>
                                                 </div>
                                                 <div className="text-xs text-gray-500">
-                                                    {slot.time.split(' - ')[1]}
+                                                    Until {slot.time.split(' - ')[1]}
                                                 </div>
                                                 {slot.status === 'available' && slot.booked > 0 && (
-                                                    <p className="text-xs text-blue-600 mt-1">
-                                                        Approx: {calculateApproxTime(slot.time, slot.booked)}
+                                                    <p className="text-xs text-blue-600 mt-1 font-semibold">
+                                                        ⏱️ ~{calculateApproxTime(slot.time, slot.booked)}
+                                                    </p>
+                                                )}
+                                                {slot.status === 'blocked' && (
+                                                    <p className="text-xs text-gray-600 mt-1">
+                                                        Blocked
+                                                    </p>
+                                                )}
+                                                {slot.status === 'full' && (
+                                                    <p className="text-xs text-red-600 mt-1 font-semibold">
+                                                        Fully Booked
                                                     </p>
                                                 )}
                                             </button>
                                         ))}
                                     </div>
                                 ) : (
-                                    <p className="text-sm text-gray-500 py-4">No available slots for this date</p>
+                                    <p className="text-sm text-gray-500 text-center py-8">No available slots for this date</p>
                                 )}
                             </div>
                         )}
@@ -281,9 +318,6 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                     </option>
                                 ))}
                             </select>
-                            <p className="text-xs text-gray-500 mt-1">
-                                Select the type of consultation you need for better preparation.
-                            </p>
                         </div>
 
                         {/* Additional Message */}
@@ -296,33 +330,33 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 name="additionalMessage"
                                 value={formData.additionalMessage}
                                 onChange={handleInputChange}
-                                placeholder="Any specific concerns or additional information you'd like to share..."
+                                placeholder="Any specific concerns or questions?"
                                 rows="3"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900 bg-white"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
                             />
                         </div>
+                    </div>
 
-                        {/* Submit Button */}
+                    {/* Submit Button */}
+                    <div className="mt-6 flex gap-3">
+                        {onCancel && (
+                            <button
+                                type="button"
+                                onClick={onCancel}
+                                className="flex-1 px-6 py-3 bg-gray-200 text-gray-700 rounded-lg font-semibold hover:bg-gray-300 transition"
+                            >
+                                Cancel
+                            </button>
+                        )}
                         <button
-                            type="button"
-                            onClick={handleSubmit}
-                            disabled={loading}
-                            className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-4 rounded-lg font-semibold hover:from-blue-700 hover:to-indigo-700 transition shadow-lg disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                            type="submit"
+                            disabled={loading || !formData.timeSlot}
+                            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
                         >
-                            {loading ? (
-                                <>
-                                    <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                                    <span>Booking...</span>
-                                </>
-                            ) : (
-                                <>
-                                    <Calendar size={20} />
-                                    <span>BOOK APPOINTMENT</span>
-                                </>
-                            )}
+                            {loading ? 'Booking...' : 'Book Appointment'}
                         </button>
                     </div>
-                </div>
+                </form>
             </div>
         </div>
     );
