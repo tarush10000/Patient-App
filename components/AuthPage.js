@@ -8,12 +8,13 @@ import Script from 'next/script';
 export default function AuthPage({ initialMode = 'login' }) {
     const router = useRouter();
     const [authMode, setAuthMode] = useState(initialMode);
-    const [loginMethod, setLoginMethod] = useState('otp'); // 'otp' or 'password'
+    const [loginMethod, setLoginMethod] = useState('otp');
     const [loading, setLoading] = useState(false);
     const [showGuestWarning, setShowGuestWarning] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
     const [reqId, setReqId] = useState(null);
     const widgetInitialized = useRef(false);
+    const scriptLoaded = useRef(false);
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -27,14 +28,12 @@ export default function AuthPage({ initialMode = 'login' }) {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        // Only redirect if we have a VALID token
         const checkExistingAuth = async () => {
             const token = localStorage.getItem('authToken');
             const rememberToken = getCookie('authToken');
 
             if (token || rememberToken) {
                 try {
-                    // Verify token is still valid
                     const response = await fetch('/api/user/profile', {
                         headers: {
                             'Authorization': `Bearer ${token || rememberToken}`
@@ -42,16 +41,14 @@ export default function AuthPage({ initialMode = 'login' }) {
                     });
 
                     if (response.ok) {
-                        // Token is valid, redirect to dashboard
                         router.push('/dashboard');
                     } else {
-                        // Token is invalid, clear it
                         localStorage.removeItem('authToken');
-                        // Stay on auth page
+                        deleteCookie('authToken');
                     }
                 } catch (error) {
-                    // Error validating, clear token
                     localStorage.removeItem('authToken');
+                    deleteCookie('authToken');
                 }
             }
         };
@@ -59,33 +56,18 @@ export default function AuthPage({ initialMode = 'login' }) {
         checkExistingAuth();
     }, [router]);
 
-    useEffect(() => {
-        if (typeof window !== 'undefined' && !widgetInitialized.current) {
-            window.otpConfig = {
-                widgetId: "356a736b3462383434333432",
-                tokenAuth: "175826TctI0F5YSPBB672e50a1P1",
-                exposeMethods: true,
-                success: (data) => {
-                    console.log('OTP Widget Success:', data);
-                    if (data?.accessToken) {
-                        handleOTPSuccess(data.accessToken);
-                    }
-                },
-                failure: (error) => {
-                    console.error('OTP Widget Failure:', error);
-                    setErrors({ general: error?.message || 'OTP verification failed' });
-                    setLoading(false);
-                }
-            };
-        }
-    }, []);
-
     const getCookie = (name) => {
         if (typeof document === 'undefined') return null;
         const value = `; ${document.cookie}`;
         const parts = value.split(`; ${name}=`);
         if (parts.length === 2) return parts.pop().split(';').shift();
         return null;
+    };
+
+    const deleteCookie = (name) => {
+        if (typeof document !== 'undefined') {
+            document.cookie = `${name}=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+        }
     };
 
     const handleOTPSuccess = async (accessToken) => {
@@ -112,13 +94,9 @@ export default function AuthPage({ initialMode = 'login' }) {
                 throw new Error(data.error || 'Verification failed');
             }
 
-            // Store token
             localStorage.setItem('authToken', data.token);
-
-            // Show success message
             setSuccessMessage(data.message || 'Authentication successful!');
 
-            // Redirect to dashboard
             setTimeout(() => {
                 router.push('/dashboard');
             }, 1000);
@@ -171,7 +149,6 @@ export default function AuthPage({ initialMode = 'login' }) {
         setErrors({});
         setSuccessMessage('');
 
-        // Validation
         if (!formData.phone || formData.phone.length < 10) {
             setErrors({ phone: 'Please enter a valid 10-digit phone number' });
             return;
@@ -185,13 +162,11 @@ export default function AuthPage({ initialMode = 'login' }) {
         setLoading(true);
 
         try {
-            // Format phone number (remove any spaces or special characters)
             const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
-            const formattedPhone = cleanPhone.replace(/^91/, ''); // Remove country code if present
+            const formattedPhone = cleanPhone.replace(/^91/, '');
 
             console.log('Sending OTP to:', formattedPhone);
 
-            // Check if MSG91 methods are available
             if (window.sendOtp) {
                 window.sendOtp(
                     `91${formattedPhone}`,
@@ -216,7 +191,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                 setErrors({ general: 'OTP service is initializing. Please wait and try again.' });
                 setLoading(false);
 
-                // Try to reinitialize
                 if (window.initSendOTP && window.otpConfig) {
                     console.log('Attempting to reinitialize MSG91 widget...');
                     window.initSendOTP(window.otpConfig);
@@ -233,8 +207,8 @@ export default function AuthPage({ initialMode = 'login' }) {
     const handleVerifyOTP = () => {
         setErrors({});
 
-        if (!formData.otp || formData.otp.length !== 6) {
-            setErrors({ otp: 'Please enter a valid 6-digit OTP' });
+        if (!formData.otp || formData.otp.length !== 4) {
+            setErrors({ otp: 'Please enter a valid 4-digit OTP' });
             return;
         }
 
@@ -251,8 +225,10 @@ export default function AuthPage({ initialMode = 'login' }) {
                     formData.otp,
                     (data) => {
                         console.log('OTP verification success:', data);
-                        if (data?.accessToken) {
-                            handleOTPSuccess(data.accessToken);
+                        // MSG91 returns the token in 'message' field
+                        const token = data?.accessToken || data?.message;
+                        if (token) {
+                            handleOTPSuccess(token);
                         } else {
                             setErrors({ general: 'Verification succeeded but no token received.' });
                             setLoading(false);
@@ -264,7 +240,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                         setErrors({ general: errorMsg });
                         setLoading(false);
                     },
-                    reqId // Pass request ID if available
+                    reqId
                 );
             } else {
                 console.error('MSG91 verifyOtp method not available');
@@ -281,7 +257,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     const handleResendOTP = () => {
         if (window.retryOtp) {
             window.retryOtp(
-                null, // Use default channel
+                null,
                 (data) => {
                     console.log('OTP resent:', data);
                     setSuccessMessage('OTP resent successfully!');
@@ -328,26 +304,64 @@ export default function AuthPage({ initialMode = 'login' }) {
         <>
             <Script
                 src="https://verify.msg91.com/otp-provider.js"
-                strategy="afterInteractive"  // Add this
+                strategy="afterInteractive"
                 onLoad={() => {
-                    console.log('MSG91 script loaded');
+                    console.log('MSG91 script loaded successfully');
+                    scriptLoaded.current = true;
 
-                    // Wait a moment for the script to initialize
                     setTimeout(() => {
-                        if (window.initSendOTP && window.otpConfig) {
-                            window.initSendOTP(window.otpConfig);
-                            widgetInitialized.current = true;
+                        if (typeof window !== 'undefined' && !widgetInitialized.current) {
+                            console.log('Initializing MSG91 widget...');
 
-                            // Check methods after initialization
-                            setTimeout(() => {
-                                console.log('Available MSG91 methods:', {
-                                    sendOtp: typeof window.sendOtp,
-                                    verifyOtp: typeof window.verifyOtp,
-                                    retryOtp: typeof window.retryOtp,
-                                });
-                            }, 500);
+                            const configuration = {
+                                widgetId: process.env.MSG91_WIDGET_ID,
+                                tokenAuth: process.env.MSG91_AUTH_KEY,
+                                exposeMethods: true,
+                                success: (data) => {
+                                    console.log('OTP Widget Success:', data);
+                                    // MSG91 returns the token in 'message' field, not 'accessToken'
+                                    const token = data?.accessToken || data?.message;
+                                    if (token) {
+                                        handleOTPSuccess(token);
+                                    } else {
+                                        console.error('No token in success response:', data);
+                                        setErrors({ general: 'Verification succeeded but no token received.' });
+                                        setLoading(false);
+                                    }
+                                },
+                                failure: (error) => {
+                                    console.error('OTP Widget Failure:', error);
+                                    if (otpSent) {
+                                        setErrors({ general: error?.message || 'OTP verification failed' });
+                                        setLoading(false);
+                                    }
+                                }
+                            };
+
+                            if (typeof window.initSendOTP === 'function') {
+                                try {
+                                    window.initSendOTP(configuration);
+                                    widgetInitialized.current = true;
+                                    console.log('MSG91 widget initialized');
+
+                                    setTimeout(() => {
+                                        console.log('MSG91 Methods check:', {
+                                            sendOtp: typeof window.sendOtp,
+                                            verifyOtp: typeof window.verifyOtp,
+                                            retryOtp: typeof window.retryOtp,
+                                        });
+                                    }, 2000);
+                                } catch (error) {
+                                    console.error('Error during MSG91 initialization:', error);
+                                    setErrors({ general: 'Failed to initialize OTP service.' });
+                                }
+                            }
                         }
-                    }, 100);
+                    }, 500);
+                }}
+                onError={(e) => {
+                    console.error('Failed to load MSG91 script:', e);
+                    setErrors({ general: 'Failed to load OTP service. Please refresh the page.' });
                 }}
             />
 
@@ -361,16 +375,15 @@ export default function AuthPage({ initialMode = 'login' }) {
                     </div>
 
                     <div className="p-6">
-                        {/* Auth Mode Toggle */}
-                        <div className="flex gap-2 mb-4">
+                        <div className="flex mb-6 border-b">
                             <button
                                 onClick={() => {
                                     setAuthMode('login');
                                     resetForm();
                                 }}
-                                className={`flex-1 py-2 rounded-lg font-semibold transition ${authMode === 'login'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                className={`flex-1 py-2 font-semibold transition ${authMode === 'login'
+                                    ? 'text-blue-600 border-b-2 border-blue-600'
+                                    : 'text-gray-500'
                                     }`}
                             >
                                 Login
@@ -378,20 +391,20 @@ export default function AuthPage({ initialMode = 'login' }) {
                             <button
                                 onClick={() => {
                                     setAuthMode('signup');
+                                    setLoginMethod('otp');
                                     resetForm();
                                 }}
-                                className={`flex-1 py-2 rounded-lg font-semibold transition ${authMode === 'signup'
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                className={`flex-1 py-2 font-semibold transition ${authMode === 'signup'
+                                    ? 'text-blue-600 border-b-2 border-blue-600'
+                                    : 'text-gray-500'
                                     }`}
                             >
                                 Sign Up
                             </button>
                         </div>
 
-                        {/* Login Method Toggle (only for login mode) */}
                         {authMode === 'login' && (
-                            <div className="flex gap-2 mb-6">
+                            <div className="flex gap-2 mb-4">
                                 <button
                                     onClick={() => {
                                         setLoginMethod('otp');
@@ -421,31 +434,27 @@ export default function AuthPage({ initialMode = 'login' }) {
                             </div>
                         )}
 
-                        {/* Error Messages */}
                         {errors.general && (
                             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4 text-sm">
                                 {errors.general}
                             </div>
                         )}
 
-                        {/* Success Messages */}
                         {successMessage && (
                             <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 text-sm">
                                 {successMessage}
                             </div>
                         )}
 
-                        {/* OTP Flow */}
                         {(loginMethod === 'otp' || authMode === 'signup') && !otpSent && (
                             <div>
-                                {/* Full Name (Signup only) */}
                                 {authMode === 'signup' && (
                                     <div className="mb-4">
                                         <label className="block text-sm font-semibold text-gray-700 mb-2">
                                             Full Name *
                                         </label>
                                         <div className="relative">
-                                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                            <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                             <input
                                                 type="text"
                                                 name="fullName"
@@ -459,19 +468,18 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     </div>
                                 )}
 
-                                {/* Phone Number */}
                                 <div className="mb-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                                         Phone Number *
                                     </label>
                                     <div className="relative">
-                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                         <input
                                             type="tel"
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
-                                            placeholder="10-digit phone number"
+                                            placeholder="Enter 10-digit phone number"
                                             maxLength="10"
                                             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                         />
@@ -479,7 +487,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
                                 </div>
 
-                                {/* Remember Me (Login only) */}
                                 {authMode === 'login' && (
                                     <div className="mb-4 flex items-center">
                                         <input
@@ -507,7 +514,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                             </div>
                         )}
 
-                        {/* OTP Verification */}
                         {(loginMethod === 'otp' || authMode === 'signup') && otpSent && (
                             <div>
                                 <p className="text-sm text-gray-600 mb-4">
@@ -523,7 +529,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                                         name="otp"
                                         value={formData.otp}
                                         onChange={handleInputChange}
-                                        placeholder="Enter 6-digit OTP"
+                                        placeholder="Enter 4-digit OTP"
                                         maxLength="6"
                                         className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-lg font-semibold"
                                     />
@@ -539,41 +545,38 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     {loading ? 'Verifying...' : 'Verify OTP'}
                                 </button>
 
-                                <div className="flex justify-between text-sm">
-                                    <button
-                                        type="button"
-                                        onClick={handleResendOTP}
-                                        className="text-blue-600 hover:underline"
-                                        disabled={loading}
-                                    >
-                                        Resend OTP
-                                    </button>
-                                    <button
-                                        type="button"
-                                        onClick={resetForm}
-                                        className="text-gray-600 hover:underline"
-                                    >
-                                        Change Number
-                                    </button>
-                                </div>
+                                <button
+                                    type="button"
+                                    onClick={handleResendOTP}
+                                    className="w-full text-blue-600 text-sm hover:underline"
+                                >
+                                    Resend OTP
+                                </button>
+
+                                <button
+                                    type="button"
+                                    onClick={resetForm}
+                                    className="w-full text-gray-600 text-sm hover:underline mt-2"
+                                >
+                                    Change Phone Number
+                                </button>
                             </div>
                         )}
 
-                        {/* Password Login Form */}
-                        {authMode === 'login' && loginMethod === 'password' && (
+                        {loginMethod === 'password' && authMode === 'login' && (
                             <form onSubmit={handlePasswordLogin}>
                                 <div className="mb-4">
                                     <label className="block text-sm font-semibold text-gray-700 mb-2">
                                         Phone Number *
                                     </label>
                                     <div className="relative">
-                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                        <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                         <input
                                             type="tel"
                                             name="phone"
                                             value={formData.phone}
                                             onChange={handleInputChange}
-                                            placeholder="10-digit phone number"
+                                            placeholder="Enter 10-digit phone number"
                                             maxLength="10"
                                             className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                                         />
@@ -586,7 +589,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                                         Password *
                                     </label>
                                     <div className="relative">
-                                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                        <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
                                         <input
                                             type="password"
                                             name="password"
@@ -623,7 +626,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                             </form>
                         )}
 
-                        {/* Divider */}
                         <div className="relative my-6">
                             <div className="absolute inset-0 flex items-center">
                                 <div className="w-full border-t border-gray-300"></div>
@@ -633,7 +635,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                             </div>
                         </div>
 
-                        {/* Skip Login Button */}
                         <button
                             onClick={handleGuestAppointment}
                             className="w-full bg-gray-200 text-gray-700 py-3 rounded-lg font-semibold hover:bg-gray-300 transition"
@@ -643,7 +644,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                     </div>
                 </div>
 
-                {/* Guest Warning Modal */}
                 {showGuestWarning && (
                     <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                         <div className="bg-white rounded-xl max-w-md w-full p-6">
