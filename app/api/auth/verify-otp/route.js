@@ -1,46 +1,37 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
-import OTP from '@/models/OTP';
 import { generateToken } from '@/lib/auth';
+import msg91Service from '@/lib/msg91';
 
 export async function POST(request) {
     try {
-        await connectDB();
+        const { accessToken, fullName, rememberMe } = await request.json();
 
-        const { phone, otp, fullName } = await request.json();
-
-        if (!phone || !otp) {
+        if (!accessToken) {
             return NextResponse.json(
-                { error: 'Phone and OTP are required' },
+                { error: 'Access token is required' },
                 { status: 400 }
             );
         }
 
-        // Find the most recent OTP for this phone
-        const otpRecord = await OTP.findOne({
-            phone,
-            otp,
-            verified: false,
-            expiresAt: { $gt: new Date() }
-        }).sort({ createdAt: -1 });
+        // Verify the access token with MSG91
+        const verificationResult = await msg91Service.verifyAccessToken(accessToken);
 
-        if (!otpRecord) {
+        if (!verificationResult.verified) {
             return NextResponse.json(
-                { error: 'Invalid or expired OTP' },
-                { status: 401 }
+                { error: 'OTP verification failed' },
+                { status: 400 }
             );
         }
 
-        // Mark OTP as verified
-        otpRecord.verified = true;
-        await otpRecord.save();
+        await connectDB();
 
-        // Find or create user
-        let user = await User.findOne({ phone });
+        // Check if user exists
+        let user = await User.findOne({ phone: verificationResult.phone });
 
         if (!user) {
-            // Create new user if doesn't exist
+            // New user signup
             if (!fullName) {
                 return NextResponse.json(
                     { error: 'Full name is required for new users' },
@@ -50,34 +41,49 @@ export async function POST(request) {
 
             user = await User.create({
                 fullName,
-                phone,
-                role: 'patient',
-                isVerified: true
+                phone: verificationResult.phone,
+                email: verificationResult.email,
+                isPhoneVerified: true,
+                role: 'patient'
             });
         } else {
-            // Mark existing user as verified
-            user.isVerified = true;
+            // Update phone verification status
+            user.isPhoneVerified = true;
             await user.save();
         }
 
-        // Generate token
-        const token = generateToken(user._id, user.role);
+        // Generate token with remember me option
+        const tokenExpiry = rememberMe ? '30d' : '7d';
+        const token = generateToken(user._id, user.role, tokenExpiry);
 
-        return NextResponse.json({
-            message: 'OTP verified successfully',
+        // Set secure HTTP-only cookie for remember me
+        const response = NextResponse.json({
+            message: user.isNew ? 'Account created successfully' : 'Login successful',
             token,
             user: {
                 id: user._id,
                 fullName: user.fullName,
                 phone: user.phone,
+                email: user.email,
                 role: user.role
             }
         });
 
+        if (rememberMe) {
+            response.cookies.set('authToken', token, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'strict',
+                maxAge: 30 * 24 * 60 * 60 // 30 days
+            });
+        }
+
+        return response;
+
     } catch (error) {
         console.error('Verify OTP error:', error);
         return NextResponse.json(
-            { error: 'Failed to verify OTP' },
+            { error: error.message || 'Verification failed' },
             { status: 500 }
         );
     }
