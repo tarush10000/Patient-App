@@ -27,41 +27,56 @@ export default function AuthPage({ initialMode = 'login' }) {
     const [successMessage, setSuccessMessage] = useState('');
 
     useEffect(() => {
-        // Check for existing auth token on mount
-        const token = localStorage.getItem('authToken');
-        const rememberToken = getCookie('authToken');
+        // Only redirect if we have a VALID token
+        const checkExistingAuth = async () => {
+            const token = localStorage.getItem('authToken');
+            const rememberToken = getCookie('authToken');
 
-        if (token || rememberToken) {
-            router.push('/dashboard');
-        }
-    }, []);
+            if (token || rememberToken) {
+                try {
+                    // Verify token is still valid
+                    const response = await fetch('/api/user/profile', {
+                        headers: {
+                            'Authorization': `Bearer ${token || rememberToken}`
+                        }
+                    });
+
+                    if (response.ok) {
+                        // Token is valid, redirect to dashboard
+                        router.push('/dashboard');
+                    } else {
+                        // Token is invalid, clear it
+                        localStorage.removeItem('authToken');
+                        // Stay on auth page
+                    }
+                } catch (error) {
+                    // Error validating, clear token
+                    localStorage.removeItem('authToken');
+                }
+            }
+        };
+
+        checkExistingAuth();
+    }, [router]);
 
     useEffect(() => {
-        // Initialize MSG91 widget configuration
         if (typeof window !== 'undefined' && !widgetInitialized.current) {
             window.otpConfig = {
                 widgetId: "356a736b3462383434333432",
-                tokenAuth: "175826TctI0F5YSPBB672e50a1P1", // This should be dynamically generated
+                tokenAuth: "175826TctI0F5YSPBB672e50a1P1",
                 exposeMethods: true,
                 success: (data) => {
-                    console.log('OTP Widget Success Response:', data);
-                    if (data && data.accessToken) {
+                    console.log('OTP Widget Success:', data);
+                    if (data?.accessToken) {
                         handleOTPSuccess(data.accessToken);
-                    } else {
-                        console.error('No access token in success response');
-                        setErrors({ general: 'OTP verification succeeded but no token received. Please try again.' });
                     }
                 },
                 failure: (error) => {
-                    console.error('OTP Widget Failure Response:', error);
-                    const errorMessage = error?.message || error?.error || 'OTP verification failed. Please try again.';
-                    setErrors({ general: errorMessage });
+                    console.error('OTP Widget Failure:', error);
+                    setErrors({ general: error?.message || 'OTP verification failed' });
                     setLoading(false);
-                },
+                }
             };
-
-            // Log the configuration for debugging
-            console.log('MSG91 Widget Config:', window.otpConfig);
         }
     }, []);
 
@@ -313,28 +328,26 @@ export default function AuthPage({ initialMode = 'login' }) {
         <>
             <Script
                 src="https://verify.msg91.com/otp-provider.js"
+                strategy="afterInteractive"  // Add this
                 onLoad={() => {
                     console.log('MSG91 script loaded');
-                    if (window.initSendOTP && window.otpConfig) {
-                        console.log('Initializing MSG91 widget...');
-                        window.initSendOTP(window.otpConfig);
-                        widgetInitialized.current = true;
-                        console.log('MSG91 widget initialized');
 
-                        // Log available methods
-                        console.log('Available MSG91 methods:', {
-                            sendOtp: !!window.sendOtp,
-                            verifyOtp: !!window.verifyOtp,
-                            retryOtp: !!window.retryOtp,
-                            getWidgetData: !!window.getWidgetData
-                        });
-                    } else {
-                        console.error('MSG91 initialization requirements not met');
-                    }
-                }}
-                onError={(e) => {
-                    console.error('Failed to load MSG91 script:', e);
-                    setErrors({ general: 'Failed to load OTP service. Please refresh the page.' });
+                    // Wait a moment for the script to initialize
+                    setTimeout(() => {
+                        if (window.initSendOTP && window.otpConfig) {
+                            window.initSendOTP(window.otpConfig);
+                            widgetInitialized.current = true;
+
+                            // Check methods after initialization
+                            setTimeout(() => {
+                                console.log('Available MSG91 methods:', {
+                                    sendOtp: typeof window.sendOtp,
+                                    verifyOtp: typeof window.verifyOtp,
+                                    retryOtp: typeof window.retryOtp,
+                                });
+                            }, 500);
+                        }
+                    }, 100);
                 }}
             />
 
@@ -356,8 +369,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     resetForm();
                                 }}
                                 className={`flex-1 py-2 rounded-lg font-semibold transition ${authMode === 'login'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                     }`}
                             >
                                 Login
@@ -368,8 +381,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     resetForm();
                                 }}
                                 className={`flex-1 py-2 rounded-lg font-semibold transition ${authMode === 'signup'
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
                                     }`}
                             >
                                 Sign Up
@@ -385,8 +398,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                                         resetForm();
                                     }}
                                     className={`flex-1 py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${loginMethod === 'otp'
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
                                 >
                                     <Phone size={16} />
@@ -398,8 +411,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                                         resetForm();
                                     }}
                                     className={`flex-1 py-2 rounded-lg font-semibold transition flex items-center justify-center gap-2 ${loginMethod === 'password'
-                                            ? 'bg-green-600 text-white'
-                                            : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                        ? 'bg-green-600 text-white'
+                                        : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                         }`}
                                 >
                                     <Lock size={16} />
