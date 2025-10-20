@@ -6,7 +6,7 @@ import msg91Service from '@/lib/msg91';
 
 export async function POST(request) {
     try {
-        const { accessToken, fullName, rememberMe } = await request.json();
+        const { accessToken, fullName, pin, rememberMe } = await request.json();
 
         if (!accessToken) {
             return NextResponse.json(
@@ -31,7 +31,7 @@ export async function POST(request) {
         let user = await User.findOne({ phone: verificationResult.phone });
 
         if (!user) {
-            // New user signup
+            // New user signup - PIN is required
             if (!fullName) {
                 return NextResponse.json(
                     { error: 'Full name is required for new users' },
@@ -39,15 +39,30 @@ export async function POST(request) {
                 );
             }
 
+            if (!pin) {
+                return NextResponse.json(
+                    { error: 'PIN is required for new users' },
+                    { status: 400 }
+                );
+            }
+
+            // Validate PIN format
+            if (!/^\d{6}$/.test(pin)) {
+                return NextResponse.json(
+                    { error: 'PIN must be exactly 6 digits' },
+                    { status: 400 }
+                );
+            }
+
             user = await User.create({
                 fullName,
                 phone: verificationResult.phone,
-                email: verificationResult.email,
+                pin,
                 isPhoneVerified: true,
                 role: 'patient'
             });
         } else {
-            // Update phone verification status
+            // Existing user login
             user.isPhoneVerified = true;
             await user.save();
         }
@@ -64,7 +79,6 @@ export async function POST(request) {
                 id: user._id,
                 fullName: user.fullName,
                 phone: user.phone,
-                email: user.email,
                 role: user.role
             }
         });

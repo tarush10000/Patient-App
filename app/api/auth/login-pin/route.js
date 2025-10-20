@@ -7,27 +7,35 @@ export async function POST(request) {
     try {
         await connectDB();
 
-        const { phone, password, rememberMe } = await request.json();
+        const { phone, pin, rememberMe } = await request.json();
 
-        if (!phone || !password) {
+        if (!phone || !pin) {
             return NextResponse.json(
-                { error: 'Phone and password are required' },
+                { error: 'Phone and PIN are required' },
+                { status: 400 }
+            );
+        }
+
+        // Validate PIN format
+        if (!/^\d{6}$/.test(pin)) {
+            return NextResponse.json(
+                { error: 'PIN must be exactly 6 digits' },
                 { status: 400 }
             );
         }
 
         const user = await User.findOne({ phone });
 
-        if (!user || !user.password) {
+        if (!user) {
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }
             );
         }
 
-        const isPasswordValid = await user.comparePassword(password);
+        const isPinValid = await user.comparePin(pin);
 
-        if (!isPasswordValid) {
+        if (!isPinValid) {
             return NextResponse.json(
                 { error: 'Invalid credentials' },
                 { status: 401 }
@@ -45,7 +53,6 @@ export async function POST(request) {
                 id: user._id,
                 fullName: user.fullName,
                 phone: user.phone,
-                email: user.email,
                 role: user.role
             }
         });
@@ -62,7 +69,7 @@ export async function POST(request) {
         return response;
 
     } catch (error) {
-        console.error('Login error:', error);
+        console.error('PIN login error:', error);
         return NextResponse.json(
             { error: 'Internal server error' },
             { status: 500 }

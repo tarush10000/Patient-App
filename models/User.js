@@ -7,23 +7,20 @@ const UserSchema = new mongoose.Schema({
         required: true,
         trim: true
     },
-    email: {
-        type: String,
-        unique: true,
-        sparse: true,
-        lowercase: true,
-        trim: true
-    },
     phone: {
         type: String,
+        required: true,
         unique: true,
-        sparse: true,
         trim: true
     },
-    password: {
+    pin: {
         type: String,
-        required: function () {
-            return this.email != null;
+        required: true,
+        validate: {
+            validator: function(v) {
+                return /^\d{6}$/.test(v); // Exactly 6 digits
+            },
+            message: 'PIN must be exactly 6 digits'
         }
     },
     role: {
@@ -31,7 +28,7 @@ const UserSchema = new mongoose.Schema({
         enum: ['patient', 'reception', 'admin'],
         default: 'patient'
     },
-    isVerified: {
+    isPhoneVerified: {
         type: Boolean,
         default: false
     },
@@ -47,22 +44,22 @@ const UserSchema = new mongoose.Schema({
     timestamps: true
 });
 
-// Hash password before saving
+// Hash PIN before saving
 UserSchema.pre('save', async function (next) {
-    if (!this.isModified('password')) return next();
+    if (!this.isModified('pin')) return next();
 
     try {
         const salt = await bcrypt.genSalt(10);
-        this.password = await bcrypt.hash(this.password, salt);
+        this.pin = await bcrypt.hash(this.pin, salt);
         next();
     } catch (error) {
         next(error);
     }
 });
 
-// Compare password method
-UserSchema.methods.comparePassword = async function (candidatePassword) {
-    return await bcrypt.compare(candidatePassword, this.password);
+// Compare PIN method
+UserSchema.methods.comparePin = async function (candidatePin) {
+    return await bcrypt.compare(candidatePin, this.pin);
 };
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);
