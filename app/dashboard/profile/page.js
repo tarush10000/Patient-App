@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { User, Phone, Mail, Bell, Edit2, Save, X } from 'lucide-react';
-import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import Header from '@/components/Header';
 import { api } from '@/lib/api';
+import { Bell, Edit2, Phone, Save, User, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function ProfilePage() {
     const router = useRouter();
@@ -158,13 +158,14 @@ export default function ProfilePage() {
                                 Account Information
                             </h3>
                             {!isEditing ? (
-                                <button
-                                    onClick={handleEditToggle}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
-                                >
-                                    <Edit2 size={16} />
-                                    Edit
-                                </button>
+                                // <button
+                                //     onClick={handleEditToggle}
+                                //     className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
+                                // >
+                                //     <Edit2 size={16} />
+                                //     Edit
+                                // </button>
+                                <> </>
                             ) : (
                                 <div className="flex gap-2">
                                     <button
@@ -229,25 +230,6 @@ export default function ProfilePage() {
                                         <p className="font-medium text-gray-800">
                                             {user?.phone ? `+91 ${user.phone}` : 'Not set'}
                                         </p>
-                                    )}
-                                </div>
-                            </div>
-
-                            {/* Email */}
-                            <div className="flex items-start gap-3">
-                                <Mail size={18} className="text-gray-500 mt-1" />
-                                <div className="flex-1">
-                                    <p className="text-sm text-gray-600 mb-1">Email Address</p>
-                                    {isEditing ? (
-                                        <input
-                                            type="email"
-                                            value={editForm.email}
-                                            onChange={(e) => setEditForm({ ...editForm, email: e.target.value })}
-                                            placeholder="your.email@example.com"
-                                            className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-800 bg-white"
-                                        />
-                                    ) : (
-                                        <p className="font-medium text-gray-800">{user?.email || 'Not set'}</p>
                                     )}
                                 </div>
                             </div>

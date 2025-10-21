@@ -117,7 +117,7 @@ export default function DashboardPage() {
 
                     {/* Health Tip */}
                     <div className="bg-white rounded-xl p-6 shadow-md">
-                        <h3 className="font-bold text-lg mb-2">Health Tip of the Day</h3>
+                        <h3 className="font-bold text-lg mb-2 text-gray-800">Health Tip of the Day</h3>
                         <p className="text-gray-600">
                             Remember to stay hydrated! Drinking enough water is crucial for overall health and well-being.
                         </p>

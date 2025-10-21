@@ -155,7 +155,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     };
 
     // OTP Success Handler for existing users (login via OTP)
-    const handleOTPSuccess = async (accessToken) => {
+    const handleOTPSuccess = async (accessToken, phone) => {
         console.log('Processing OTP success with token:', accessToken);
         setLoading(true);
         setErrors({});
@@ -166,8 +166,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     accessToken,
-                    phone: formData.phone,
-                    fullName: authMode === 'signup' ? formData.fullName : undefined,
+                    phone: phone || formData.phone, // Use passed phone or fallback to formData
                     rememberMe: formData.rememberMe
                 })
             });
@@ -209,15 +208,35 @@ export default function AuthPage({ initialMode = 'login' }) {
         setLoading(true);
 
         try {
-            const response = await fetch('/api/auth/verify-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
+            const cleanPhone = formData.phone.replace(/[^0-9]/g, '');
+            const formattedPhone = cleanPhone.replace(/^91/, '');
+
+            console.log('Sending to backend:', {
+                accessToken,
+                phone: formattedPhone,
+                fullName: formData.fullName,
+                pin: formData.pin
+            });
+
+            const endpoint = forgotPinMode ? '/api/auth/forgot-pin' : '/api/auth/verify-otp';
+            const payload = forgotPinMode
+                ? {
                     accessToken,
+                    newPin: formData.pin,
+                    phone: formattedPhone
+                }
+                : {
+                    accessToken,
+                    phone: formattedPhone,
                     fullName: formData.fullName,
                     pin: formData.pin,
                     rememberMe: formData.rememberMe
-                })
+                };
+
+            const response = await fetch(endpoint, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
             });
 
             const data = await response.json();
@@ -226,14 +245,23 @@ export default function AuthPage({ initialMode = 'login' }) {
                 throw new Error(data.error || 'Setup failed');
             }
 
-            localStorage.setItem('authToken', data.token);
-            setSuccessMessage('Account created successfully!');
+            if (!forgotPinMode) {
+                localStorage.setItem('authToken', data.token);
+            }
+
+            setSuccessMessage(forgotPinMode ? 'PIN reset successfully!' : 'Account created successfully!');
 
             setTimeout(() => {
-                router.push('/dashboard');
+                if (forgotPinMode) {
+                    resetForm();
+                    setAuthMode('login');
+                } else {
+                    router.push('/dashboard');
+                }
             }, 1000);
 
         } catch (error) {
+            console.error('PIN setup error:', error);
             setErrors({ general: error.message });
         } finally {
             setLoading(false);
@@ -380,7 +408,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                                 setLoading(false);
                             } else {
                                 // Existing user login via OTP
-                                handleOTPSuccess(token);
+                                handleOTPSuccess(token, formattedPhone); // Pass phone here
                             }
                         } else {
                             setErrors({ general: 'Verification succeeded but no token received.' });
@@ -429,8 +457,8 @@ export default function AuthPage({ initialMode = 'login' }) {
     useEffect(() => {
         if (scriptLoaded.current && !widgetInitialized.current && typeof window !== 'undefined') {
             const config = {
-                widgetId: process.env.MSG91_WIDGET_ID,
-                tokenAuth: process.env.MSG91_AUTH_KEY,
+                widgetId: process.env.NEXT_PUBLIC_MSG91_WIDGET_ID,
+                tokenAuth: process.env.NEXT_PUBLIC_MSG91_AUTH_KEY,
                 exposeMethods: true,
                 success: (data) => {
                     console.log('Widget initialized successfully', data);

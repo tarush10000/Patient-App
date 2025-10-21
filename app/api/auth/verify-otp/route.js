@@ -6,7 +6,14 @@ import msg91Service from '@/lib/msg91';
 
 export async function POST(request) {
     try {
-        const { accessToken, fullName, pin, rememberMe } = await request.json();
+        const { accessToken, phone, fullName, pin, rememberMe } = await request.json();
+
+        console.log('=== Verify OTP Request ===');
+        console.log('Access Token received:', accessToken ? 'Yes' : 'No');
+        console.log('Phone:', phone);
+        console.log('Full Name:', fullName);
+        console.log('PIN:', pin ? 'Yes' : 'No');
+        console.log('Remember Me:', rememberMe);
 
         if (!accessToken) {
             return NextResponse.json(
@@ -15,8 +22,17 @@ export async function POST(request) {
             );
         }
 
+        if (!phone) {
+            return NextResponse.json(
+                { error: 'Phone number is required' },
+                { status: 400 }
+            );
+        }
+
         // Verify the access token with MSG91
+        console.log('Verifying access token with MSG91...');
         const verificationResult = await msg91Service.verifyAccessToken(accessToken);
+        console.log('MSG91 Verification Result:', verificationResult);
 
         if (!verificationResult.verified) {
             return NextResponse.json(
@@ -27,11 +43,19 @@ export async function POST(request) {
 
         await connectDB();
 
+        // Format phone number consistently
+        const formattedPhone = phone.replace(/[^0-9]/g, '').replace(/^91/, '');
+        console.log('Formatted phone:', formattedPhone);
+
         // Check if user exists
-        let user = await User.findOne({ phone: verificationResult.phone });
+        console.log('Looking for user with phone:', formattedPhone);
+        let user = await User.findOne({ phone: formattedPhone });
+        console.log('User found:', user ? 'Yes' : 'No');
 
         if (!user) {
             // New user signup - PIN is required
+            console.log('Creating new user...');
+
             if (!fullName) {
                 return NextResponse.json(
                     { error: 'Full name is required for new users' },
@@ -54,15 +78,26 @@ export async function POST(request) {
                 );
             }
 
-            user = await User.create({
+            console.log('Creating user with data:', {
                 fullName,
-                phone: verificationResult.phone,
-                pin,
+                phone: formattedPhone,
+                pin: pin ? 'provided' : 'missing',
                 isPhoneVerified: true,
                 role: 'patient'
             });
+
+            user = await User.create({
+                fullName: fullName,
+                phone: formattedPhone,
+                pin: pin,
+                isPhoneVerified: true,
+                role: 'patient'
+            });
+
+            console.log('New user created:', user._id);
         } else {
             // Existing user login
+            console.log('Updating existing user...');
             user.isPhoneVerified = true;
             await user.save();
         }
@@ -92,10 +127,15 @@ export async function POST(request) {
             });
         }
 
+        console.log('=== Verify OTP Success ===');
         return response;
 
     } catch (error) {
-        console.error('Verify OTP error:', error);
+        console.error('=== Verify OTP Error ===');
+        console.error('Error message:', error.message);
+        console.error('Error stack:', error.stack);
+        console.error('Full error:', error);
+
         return NextResponse.json(
             { error: error.message || 'Verification failed' },
             { status: 500 }
