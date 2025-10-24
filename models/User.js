@@ -1,5 +1,4 @@
 import mongoose from 'mongoose';
-import bcrypt from 'bcryptjs';
 
 const UserSchema = new mongoose.Schema({
     fullName: {
@@ -12,16 +11,6 @@ const UserSchema = new mongoose.Schema({
         required: true,
         unique: true,
         trim: true
-    },
-    pin: {
-        type: String,
-        required: true,
-        validate: {
-            validator: function(v) {
-                return /^\d{6}$/.test(v); // Exactly 6 digits
-            },
-            message: 'PIN must be exactly 6 digits'
-        }
     },
     role: {
         type: String,
@@ -43,23 +32,5 @@ const UserSchema = new mongoose.Schema({
 }, {
     timestamps: true
 });
-
-// Hash PIN before saving
-UserSchema.pre('save', async function (next) {
-    if (!this.isModified('pin')) return next();
-
-    try {
-        const salt = await bcrypt.genSalt(10);
-        this.pin = await bcrypt.hash(this.pin, salt);
-        next();
-    } catch (error) {
-        next(error);
-    }
-});
-
-// Compare PIN method
-UserSchema.methods.comparePin = async function (candidatePin) {
-    return await bcrypt.compare(candidatePin, this.pin);
-};
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

@@ -1,26 +1,18 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
+import OTP from '@/models/OTP';
 import { generateToken } from '@/lib/auth';
-import msg91Service from '@/lib/msg91';
 
 export async function POST(request) {
     try {
-        const { accessToken, phone, fullName, pin, rememberMe } = await request.json();
+        const { phone, otp, fullName, rememberMe } = await request.json();
 
         console.log('=== Verify OTP Request ===');
-        console.log('Access Token received:', accessToken ? 'Yes' : 'No');
         console.log('Phone:', phone);
+        console.log('OTP:', otp ? 'Yes' : 'No');
         console.log('Full Name:', fullName);
-        console.log('PIN:', pin ? 'Yes' : 'No');
         console.log('Remember Me:', rememberMe);
-
-        if (!accessToken) {
-            return NextResponse.json(
-                { error: 'Access token is required' },
-                { status: 400 }
-            );
-        }
 
         if (!phone) {
             return NextResponse.json(
@@ -29,14 +21,9 @@ export async function POST(request) {
             );
         }
 
-        // Verify the access token with MSG91
-        console.log('Verifying access token with MSG91...');
-        const verificationResult = await msg91Service.verifyAccessToken(accessToken);
-        console.log('MSG91 Verification Result:', verificationResult);
-
-        if (!verificationResult.verified) {
+        if (!otp) {
             return NextResponse.json(
-                { error: 'OTP verification failed' },
+                { error: 'OTP is required' },
                 { status: 400 }
             );
         }
@@ -47,13 +34,34 @@ export async function POST(request) {
         const formattedPhone = phone.replace(/[^0-9]/g, '').replace(/^91/, '');
         console.log('Formatted phone:', formattedPhone);
 
+        // Find the OTP in database
+        const otpDoc = await OTP.findOne({
+            phone: formattedPhone,
+            otp: otp,
+            verified: false,
+            expiresAt: { $gt: new Date() }
+        }).sort({ createdAt: -1 });
+
+        if (!otpDoc) {
+            return NextResponse.json(
+                { error: 'Invalid or expired OTP' },
+                { status: 400 }
+            );
+        }
+
+        // Mark OTP as verified
+        otpDoc.verified = true;
+        await otpDoc.save();
+
         // Check if user exists
         console.log('Looking for user with phone:', formattedPhone);
         let user = await User.findOne({ phone: formattedPhone });
         console.log('User found:', user ? 'Yes' : 'No');
 
+        let isNewUser = false;
+
         if (!user) {
-            // New user signup - PIN is required
+            // New user signup
             console.log('Creating new user...');
 
             if (!fullName) {
@@ -63,37 +71,14 @@ export async function POST(request) {
                 );
             }
 
-            if (!pin) {
-                return NextResponse.json(
-                    { error: 'PIN is required for new users' },
-                    { status: 400 }
-                );
-            }
-
-            // Validate PIN format
-            if (!/^\d{6}$/.test(pin)) {
-                return NextResponse.json(
-                    { error: 'PIN must be exactly 6 digits' },
-                    { status: 400 }
-                );
-            }
-
-            console.log('Creating user with data:', {
-                fullName,
-                phone: formattedPhone,
-                pin: pin ? 'provided' : 'missing',
-                isPhoneVerified: true,
-                role: 'patient'
-            });
-
             user = await User.create({
                 fullName: fullName,
                 phone: formattedPhone,
-                pin: pin,
                 isPhoneVerified: true,
                 role: 'patient'
             });
 
+            isNewUser = true;
             console.log('New user created:', user._id);
         } else {
             // Existing user login
@@ -108,7 +93,7 @@ export async function POST(request) {
 
         // Set secure HTTP-only cookie for remember me
         const response = NextResponse.json({
-            message: user.isNew ? 'Account created successfully' : 'Login successful',
+            message: isNewUser ? 'Account created successfully' : 'Login successful',
             token,
             user: {
                 id: user._id,

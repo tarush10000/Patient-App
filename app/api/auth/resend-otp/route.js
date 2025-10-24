@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import OTP from '@/models/OTP';
-import { generateOTP, sendOTP } from '@/lib/sms';
+import whatsBoostService from '@/lib/whatsboost';
 
 export async function POST(request) {
     try {
@@ -41,7 +41,7 @@ export async function POST(request) {
         );
 
         // Generate new OTP
-        const otp = generateOTP();
+        const otp = whatsBoostService.generateOTP();
 
         // Save new OTP
         await OTP.create({
@@ -50,13 +50,16 @@ export async function POST(request) {
             expiresAt: new Date(Date.now() + 10 * 60 * 1000)
         });
 
-        // Send OTP
+        // Send OTP via WhatsBoost
         try {
-            const smsResult = await sendOTP(cleanPhone, otp);
+            const result = await whatsBoostService.sendOTP(cleanPhone, otp);
+
+            if (!result.success) {
+                throw new Error('WhatsBoost send failed');
+            }
 
             return NextResponse.json({
-                message: 'OTP resent successfully',
-                requestId: smsResult.requestId,
+                message: 'OTP resent successfully to your WhatsApp',
                 ...(process.env.NODE_ENV === 'development' && { otp })
             });
         } catch (smsError) {
