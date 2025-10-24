@@ -90,7 +90,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     };
 
     const confirmGuestAppointment = () => {
-        router.push('/guest-appointment');
+        router.push('/appointments/guest');
     };
 
     const handleSendOTP = async () => {
