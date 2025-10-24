@@ -16,8 +16,7 @@ Add the following environment variables to your `.env` file:
 
 ```bash
 # WhatsBoost Configuration
-WHATSBOOST_APP_KEY=0a1375d1-500c-4f2e-afac-a4a9fa449840
-WHATSBOOST_AUTH_KEY=C1y84SZLTbJlIUiImYDtrGfQx2jPmXPvUkbLf8ZPisZDriABRT
+
 ```
 
 ## Changes Made
