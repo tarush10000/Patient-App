@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import { authenticate } from '@/middleware/auth';
+import whatsBoostService from '@/lib/whatsboost';
 
 // GET all appointments for current user
 export async function GET(request) {
@@ -126,6 +127,27 @@ export async function POST(request) {
             status: 'upcoming',
             createdBy: user._id
         });
+
+        // Send appointment confirmation message via WhatsBoost
+        try {
+            const appointmentDateObj = new Date(appointmentDate);
+            const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
+                weekday: 'long',
+                year: 'numeric',
+                month: 'long',
+                day: 'numeric'
+            });
+
+            await whatsBoostService.sendAppointmentConfirmation(phone, {
+                patientName: fullName,
+                date: formattedDate,
+                timeSlot: timeSlot,
+                consultationType: consultationType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            });
+        } catch (messageError) {
+            console.error('Failed to send appointment confirmation message:', messageError);
+            // Don't fail the appointment creation if message fails
+        }
 
         return NextResponse.json({
             message: 'Appointment booked successfully',
