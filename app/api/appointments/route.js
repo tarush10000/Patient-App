@@ -19,7 +19,10 @@ export async function GET(request) {
 
         // Patients can only see their own appointments
         if (user.role === 'patient') {
-            query.patientId = user._id;
+            query.$or = [
+                { patientId: user._id },
+                { phone: user.phone }
+            ];
         }
         // Reception and admin can see all appointments
 

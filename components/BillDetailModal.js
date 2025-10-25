@@ -357,7 +357,7 @@ export default function BillDetailModal({ bill, onClose, clinicInfo }) {
 
                             <div class="footer">
                                 <div class="footer-note">Thank you for choosing ${clinicInfo.name}</div>
-                                <div class="footer-note">This is a computer-generated document</div>
+                                <div class="footer-note">This is a computer-generated receipt and doesn't require signature / stamp.</div>
                             </div>
                         </div>
                     </body>
