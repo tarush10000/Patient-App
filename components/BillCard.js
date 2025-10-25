@@ -1,6 +1,6 @@
 'use client';
 
-export default function BillCard({ bill, onPay }) {
+export default function BillCard({ bill, onClick }) {
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-IN', {
             day: 'numeric',
@@ -10,31 +10,26 @@ export default function BillCard({ bill, onPay }) {
     };
 
     return (
-        <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition">
-            <div className="flex justify-between items-center">
+        <div 
+            onClick={onClick}
+            className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition cursor-pointer"
+        >
+            <div className="flex justify-between items-start">
                 <div className="flex-1">
-                    <p className="font-bold text-lg">{bill.service}</p>
-                    <p className="text-sm text-gray-600">{formatDate(bill.billDate)}</p>
-                    <p className="text-2xl font-bold text-blue-600 mt-2">₹{bill.amount}</p>
+                    <p className="text-sm text-gray-600 mb-1">Bill Date: {formatDate(bill.billDate)}</p>
+                    <p className="text-2xl font-bold text-blue-600 mt-2">₹{bill.totalAmount}</p>
+                    {bill.paidDate && (
+                        <p className="text-xs text-gray-500 mt-2">
+                            Paid on {formatDate(bill.paidDate)}
+                        </p>
+                    )}
                 </div>
-                {bill.status === 'unpaid' ? (
-                    <button
-                        onClick={() => onPay(bill._id)}
-                        className="bg-green-500 text-white px-4 py-2 rounded-full font-semibold hover:bg-green-600 transition"
-                    >
-                        Pay Now
-                    </button>
-                ) : (
-                    <span className="bg-green-100 text-green-600 px-4 py-2 rounded-full font-semibold">
-                        Paid
-                    </span>
-                )}
+                <div className="text-gray-400">
+                    <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2} stroke="currentColor" className="w-6 h-6">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
+                    </svg>
+                </div>
             </div>
-            {bill.paidDate && (
-                <p className="text-xs text-gray-500 mt-2">
-                    Paid on {formatDate(bill.paidDate)}
-                </p>
-            )}
         </div>
     );
 }

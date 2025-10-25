@@ -187,7 +187,7 @@ export default function StaffDashboardPage() {
                 </div>
 
                 {/* Statistics Cards */}
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
                     <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg">
                         <div className="flex items-center gap-2 mb-2">
                             <Calendar size={20} />
@@ -210,14 +210,6 @@ export default function StaffDashboardPage() {
                             <p className="text-sm font-medium opacity-90">Pending</p>
                         </div>
                         <p className="text-3xl font-bold">{stats.todayPending}</p>
-                    </div>
-
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-xl p-4 text-white shadow-lg">
-                        <div className="flex items-center gap-2 mb-2">
-                            <Users size={20} />
-                            <p className="text-sm font-medium opacity-90">Patients</p>
-                        </div>
-                        <p className="text-3xl font-bold">{stats.totalPatients}</p>
                     </div>
                 </div>
 
