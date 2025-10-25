@@ -7,10 +7,6 @@ export const metadata = {
   keywords: "Dr. Anjali Gupta, women wellness, gynecologist appointment, women's health, book appointment, gynecology clinic, women healthcare, Agra gynecologist, online appointment booking",
   authors: [{ name: "Dr. Anjali Women Wellness Centre" }],
   
-  // Viewport and Mobile
-  viewport: "width=device-width, initial-scale=1",
-  themeColor: "#ec4899",
-  
   // Verification and Indexing
   robots: {
     index: true,

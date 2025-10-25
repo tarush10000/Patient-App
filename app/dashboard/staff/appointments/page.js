@@ -470,10 +470,10 @@ function BillModal({ appointment, onClose, onSuccess }) {
     const [isPaid, setIsPaid] = useState(true); // Default to paid
 
     const quickServices = [
-        { name: 'Consultation', amount: 1000, paymentMethod: 'UPI' },
+        { name: 'ECG', amount: 300, paymentMethod: 'Cash' },
         { name: 'Consultation', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'UPI' }
+        { name: 'PAC', amount: 1000, paymentMethod: 'Cash' },
+        { name: 'Blood Test', amount: 500, paymentMethod: 'Cash' }
     ];
 
     const paymentMethods = ['Cash', 'UPI', 'Card', 'Online'];
