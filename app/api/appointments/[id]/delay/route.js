@@ -22,7 +22,7 @@ export async function PATCH(request, { params }) {
         }
 
         await connectDB();
-        const { id } = params;
+        const { id } = await params;
         const { delayMinutes } = await request.json();
 
         if (!delayMinutes || delayMinutes <= 0) {

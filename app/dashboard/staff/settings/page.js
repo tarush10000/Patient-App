@@ -203,40 +203,6 @@ export default function StaffSettingsPage() {
                         </div>
                     )}
 
-                    {/* Permissions */}
-                    <div className="bg-white rounded-xl shadow-md p-6">
-                        <h3 className="text-lg font-bold mb-4 flex items-center gap-2 text-gray-800">
-                            <Shield size={24} />
-                            Your Permissions
-                        </h3>
-                        <div className="space-y-2">
-                            <div className="flex items-center justify-between py-2 border-b">
-                                <span className="text-gray-800">View All Appointments</span>
-                                <span className="text-green-600 font-semibold">✓</span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b">
-                                <span className="text-gray-800">Update Appointment Status</span>
-                                <span className="text-green-600 font-semibold">✓</span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b">
-                                <span className="text-gray-800">View All Users</span>
-                                <span className="text-green-600 font-semibold">✓</span>
-                            </div>
-                            <div className="flex items-center justify-between py-2 border-b">
-                                <span className="text-gray-800">Delete Appointments</span>
-                                <span className={currentUser?.role === 'admin' ? 'text-green-600' : 'text-red-600'}>
-                                    {currentUser?.role === 'admin' ? '✓' : '✗'}
-                                </span>
-                            </div>
-                            <div className="flex items-center justify-between py-2">
-                                <span className="text-gray-800">Block Time Slots & Days</span>
-                                <span className={currentUser?.role === 'admin' ? 'text-green-600' : 'text-red-600'}>
-                                    {currentUser?.role === 'admin' ? '✓' : '✗'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-
                     {/* Logout */}
                     <button
                         onClick={handleLogout}

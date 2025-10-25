@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Users, Clock, Trash2, CheckCircle, X, XCircle, DollarSign, ClockIcon } from 'lucide-react';
+import { Calendar, Users, Clock, Trash2, CheckCircle, X, XCircle, DollarSign, ClockIcon, Edit } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
@@ -366,6 +366,7 @@ function BillModal({ appointment, onClose, onSuccess }) {
         amount: '',
         paymentMethod: 'Cash'
     });
+    const [editingIndex, setEditingIndex] = useState(null);
     const [loading, setLoading] = useState(false);
 
     const quickServices = [
@@ -384,16 +385,39 @@ function BillModal({ appointment, onClose, onSuccess }) {
             return;
         }
 
-        setBillItems([...billItems, { ...newItem }]);
+        if (editingIndex !== null) {
+            // Update existing item
+            const updated = [...billItems];
+            updated[editingIndex] = { ...newItem };
+            setBillItems(updated);
+            setEditingIndex(null);
+        } else {
+            // Add new item
+            setBillItems([...billItems, { ...newItem }]);
+        }
+
         setNewItem({ service: '', amount: '', paymentMethod: 'Cash' });
     };
 
     const addQuickService = (service) => {
-        setBillItems([...billItems, { ...service, paymentMethod: 'Cash' }]);
+        setBillItems([...billItems, {
+            service: service.name,  // FIX: Use 'name' as 'service'
+            amount: service.amount,
+            paymentMethod: 'Cash'
+        }]);
+    };
+
+    const editItem = (index) => {
+        setNewItem(billItems[index]);
+        setEditingIndex(index);
     };
 
     const removeItem = (index) => {
         setBillItems(billItems.filter((_, i) => i !== index));
+        if (editingIndex === index) {
+            setEditingIndex(null);
+            setNewItem({ service: '', amount: '', paymentMethod: 'Cash' });
+        }
     };
 
     const getTotalAmount = () => {
@@ -408,7 +432,6 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
         setLoading(true);
         try {
-            // Format: "Service1, Amount1, Method1, Service2, Amount2, Method2"
             const billString = billItems
                 .map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`)
                 .join(', ');
@@ -425,8 +448,8 @@ function BillModal({ appointment, onClose, onSuccess }) {
             await api.createBill({
                 patientId: patientId,
                 appointmentId: appointment._id,
-                items: billString,
-                totalAmount: getTotalAmount()
+                service: billString,  // FIX: Send as 'service' not 'items'
+                amount: getTotalAmount()  // FIX: Send as 'amount' not 'totalAmount'
             });
 
             alert('✅ Bill created successfully!');
@@ -443,7 +466,7 @@ function BillModal({ appointment, onClose, onSuccess }) {
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold">Add Bill - {appointment.fullName}</h3>
+                    <h3 className="text-xl font-bold text-gray-800">Add Bill - {appointment.fullName}</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <X size={24} />
                     </button>
@@ -467,26 +490,28 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
                 {/* Manual Add Item */}
                 <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Add Custom Item:</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2">
+                        {editingIndex !== null ? 'Edit Item:' : 'Add Custom Item:'}
+                    </p>
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
                         <input
                             type="text"
                             placeholder="Service"
                             value={newItem.service}
                             onChange={(e) => setNewItem({ ...newItem, service: e.target.value })}
-                            className="px-3 py-2 border rounded-lg"
+                            className="px-3 py-2 border rounded-lg text-gray-600"
                         />
                         <input
                             type="number"
                             placeholder="Amount"
                             value={newItem.amount}
                             onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
-                            className="px-3 py-2 border rounded-lg"
+                            className="px-3 py-2 border rounded-lg text-gray-600"
                         />
                         <select
                             value={newItem.paymentMethod}
                             onChange={(e) => setNewItem({ ...newItem, paymentMethod: e.target.value })}
-                            className="px-3 py-2 border rounded-lg"
+                            className="px-3 py-2 border rounded-lg text-gray-600"
                         >
                             {paymentMethods.map(method => (
                                 <option key={method} value={method}>{method}</option>
@@ -494,27 +519,38 @@ function BillModal({ appointment, onClose, onSuccess }) {
                         </select>
                         <button
                             onClick={addItem}
-                            className="px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                            className={`px-4 py-2 ${editingIndex !== null ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-lg`}
                         >
-                            Add
+                            {editingIndex !== null ? 'Update' : 'Add'}
                         </button>
                     </div>
+                    {editingIndex !== null && (
+                        <button
+                            onClick={() => {
+                                setEditingIndex(null);
+                                setNewItem({ service: '', amount: '', paymentMethod: 'Cash' });
+                            }}
+                            className="mt-2 text-sm text-gray-600 hover:text-gray-800"
+                        >
+                            Cancel Edit
+                        </button>
+                    )}
                 </div>
 
                 {/* Bill Items Table */}
                 <div className="mb-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">Bill Items:</p>
+                    <p className="text-sm font-semibold text-gray-700 mb-2 text-gray-600">Bill Items:</p>
                     {billItems.length === 0 ? (
                         <p className="text-gray-500 text-sm text-center py-8">No items added yet</p>
                     ) : (
                         <div className="border rounded-lg overflow-hidden">
-                            <table className="w-full">
+                            <table className="w-full text-gray-600">
                                 <thead className="bg-gray-100">
                                     <tr>
                                         <th className="px-4 py-2 text-left text-sm font-semibold">Service</th>
                                         <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
                                         <th className="px-4 py-2 text-left text-sm font-semibold">Method</th>
-                                        <th className="px-4 py-2 text-center text-sm font-semibold">Action</th>
+                                        <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -524,12 +560,22 @@ function BillModal({ appointment, onClose, onSuccess }) {
                                             <td className="px-4 py-2 text-sm text-right">₹{item.amount}</td>
                                             <td className="px-4 py-2 text-sm">{item.paymentMethod}</td>
                                             <td className="px-4 py-2 text-center">
-                                                <button
-                                                    onClick={() => removeItem(idx)}
-                                                    className="text-red-600 hover:text-red-800"
-                                                >
-                                                    <Trash2 size={16} />
-                                                </button>
+                                                <div className="flex justify-center gap-2">
+                                                    <button
+                                                        onClick={() => editItem(idx)}
+                                                        className="text-blue-600 hover:text-blue-800"
+                                                        title="Edit"
+                                                    >
+                                                        <Edit size={16} />
+                                                    </button>
+                                                    <button
+                                                        onClick={() => removeItem(idx)}
+                                                        className="text-red-600 hover:text-red-800"
+                                                        title="Delete"
+                                                    >
+                                                        <Trash2 size={16} />
+                                                    </button>
+                                                </div>
                                             </td>
                                         </tr>
                                     ))}
