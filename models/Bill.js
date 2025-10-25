@@ -10,11 +10,11 @@ const BillSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: 'Appointment'
     },
-    service: {
+    items: {
         type: String,
         required: true
     },
-    amount: {
+    totalAmount: {
         type: Number,
         required: true
     },
@@ -30,10 +30,6 @@ const BillSchema = new mongoose.Schema({
     paidDate: {
         type: Date
     },
-    paymentMethod: {
-        type: String,
-        enum: ['cash', 'card', 'upi', 'online']
-    },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
@@ -47,5 +43,22 @@ const BillSchema = new mongoose.Schema({
 });
 
 BillSchema.index({ patientId: 1, billDate: -1 });
+
+BillSchema.methods.getParsedItems = function () {
+    const itemsArray = this.items.split(', ');
+    const parsed = [];
+
+    for (let i = 0; i < itemsArray.length; i += 3) {
+        if (itemsArray[i] && itemsArray[i + 1] && itemsArray[i + 2]) {
+            parsed.push({
+                service: itemsArray[i],
+                amount: parseFloat(itemsArray[i + 1]),
+                paymentMethod: itemsArray[i + 2]
+            });
+        }
+    }
+
+    return parsed;
+};
 
 export default mongoose.models.Bill || mongoose.model('Bill', BillSchema);
