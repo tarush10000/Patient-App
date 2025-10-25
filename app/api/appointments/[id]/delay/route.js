@@ -78,7 +78,7 @@ export async function PATCH(request, { params }) {
                 year: 'numeric'
             });
             await whatsBoostService.sendAppointmentReschedule(
-                appointment.patientId.phone,
+                appointment.phone,
                 {
                     patientName: appointment.fullName,
                     oldDate: formattedDate,

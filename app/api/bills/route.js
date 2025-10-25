@@ -47,7 +47,6 @@ export async function POST(request) {
 
         const { user } = authResult;
 
-        // Only reception and admin can create bills
         if (!['reception', 'admin'].includes(user.role)) {
             return NextResponse.json(
                 { error: 'Unauthorized' },
@@ -57,7 +56,7 @@ export async function POST(request) {
 
         await connectDB();
 
-        const { patientId, appointmentId, items, totalAmount } = await request.json();
+        const { patientId, appointmentId, items, totalAmount, status, paidDate } = await request.json();
 
         if (!patientId || !items || !totalAmount) {
             return NextResponse.json(
@@ -66,14 +65,21 @@ export async function POST(request) {
             );
         }
 
-        const bill = await Bill.create({
+        const billData = {
             patientId,
             appointmentId: appointmentId || undefined,
             items,
             totalAmount,
-            status: 'unpaid',
+            status: status || 'unpaid',
             createdBy: user._id
-        });
+        };
+
+        // Add paidDate if status is paid
+        if (status === 'paid' && paidDate) {
+            billData.paidDate = paidDate;
+        }
+
+        const bill = await Bill.create(billData);
 
         return NextResponse.json({
             message: 'Bill created successfully',
