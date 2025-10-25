@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter, usePathname } from 'next/navigation';
-import { Home, Calendar,Settings } from 'lucide-react';
+import { Home, Calendar, Settings, DollarSign } from 'lucide-react';
 
 export default function StaffBottomNav({ activeScreen = 'home', userRole }) {
     const router = useRouter();
@@ -19,6 +19,13 @@ export default function StaffBottomNav({ activeScreen = 'home', userRole }) {
             icon: Calendar,
             label: 'Appointments',
             path: '/dashboard/staff/appointments'
+        },
+        {
+            id: 'collections',
+            icon: DollarSign,
+            label: 'Collections',
+            path: '/dashboard/staff/collections',
+            adminOnly: false // Available to both admin and reception
         },
         {
             id: 'settings',
