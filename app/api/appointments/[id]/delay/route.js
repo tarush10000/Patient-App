@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { authenticate } from '@/middleware/auth';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
-import WhatsBoostService from '@/lib/whatsboost';
+import whatsBoostService from '@/lib/whatsboost';
 
 export async function PATCH(request, { params }) {
     try {
@@ -32,13 +32,14 @@ export async function PATCH(request, { params }) {
             );
         }
 
-        const appointment = await Appointment.findById(id).populate('userId');
+        const appointment = await Appointment.findById(id).populate('patientId');
 
         if (!appointment) {
             return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
         }
 
         // Parse the current time slot
+        const oldTimeSlot = appointment.timeSlot;
         const [startTime, endTime] = appointment.timeSlot.split(' - ');
         const [time, period] = startTime.split(' ');
         const [hours, minutes] = time.split(':').map(Number);
@@ -54,7 +55,7 @@ export async function PATCH(request, { params }) {
         const displayHours = newHours > 12 ? newHours - 12 : (newHours === 0 ? 12 : newHours);
 
         const newStartTime = `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
-        
+
         // Calculate new end time (15 minutes after start)
         const endTotalMinutes = totalMinutes + 15;
         const endHours = Math.floor(endTotalMinutes / 60) % 24;
@@ -71,19 +72,19 @@ export async function PATCH(request, { params }) {
 
         // Send reschedule notification via WhatsApp
         try {
-            const whatsboost = new WhatsBoostService();
-            await whatsboost.sendAppointmentReschedule(
-                appointment.userId.phone,
+            const formattedDate = new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
+                day: 'numeric',
+                month: 'long',
+                year: 'numeric'
+            });
+            await whatsBoostService.sendAppointmentReschedule(
+                appointment.patientId.phone,
                 {
                     patientName: appointment.fullName,
-                    oldTime: startTime,
-                    newTime: newStartTime,
-                    date: new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
-                        day: 'numeric',
-                        month: 'long',
-                        year: 'numeric'
-                    }),
-                    delayMinutes: delayMinutes
+                    oldDate: formattedDate,
+                    oldTimeSlot: oldTimeSlot.split(' - ')[0],  // Original time before update
+                    newDate: formattedDate,
+                    newTimeSlot: newStartTime
                 }
             );
         } catch (msgError) {
@@ -95,7 +96,7 @@ export async function PATCH(request, { params }) {
             message: 'Appointment delayed successfully',
             appointment: {
                 ...appointment.toObject(),
-                userId: appointment.userId._id
+                patientId: appointment.patientId._id
             }
         });
 

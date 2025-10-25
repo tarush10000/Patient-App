@@ -546,8 +546,8 @@ function BillModal({ appointment, onClose, onSuccess }) {
             await api.createBill({
                 patientId: patientId,
                 appointmentId: appointment._id,
-                service: billString,  // FIX: Send as 'service' not 'items'
-                amount: getTotalAmount()  // FIX: Send as 'amount' not 'totalAmount'
+                items: billString,
+                totalAmount: getTotalAmount()
             });
 
             alert('✅ Bill created successfully!');

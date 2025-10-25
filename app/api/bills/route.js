@@ -57,9 +57,9 @@ export async function POST(request) {
 
         await connectDB();
 
-        const { patientId, appointmentId, service, amount } = await request.json();
+        const { patientId, appointmentId, items, totalAmount } = await request.json();
 
-        if (!patientId || !service || !amount) {
+        if (!patientId || !items || !totalAmount) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
@@ -69,8 +69,8 @@ export async function POST(request) {
         const bill = await Bill.create({
             patientId,
             appointmentId: appointmentId || undefined,
-            service,
-            amount,
+            items,
+            totalAmount,
             status: 'unpaid',
             createdBy: user._id
         });
