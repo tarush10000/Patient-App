@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { X, Edit2 } from 'lucide-react';
 import { api } from '@/lib/api';
+import { X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function EditAppointmentModal({ appointment, onClose, onSuccess }) {
     const [formData, setFormData] = useState({
@@ -35,7 +35,7 @@ export default function EditAppointmentModal({ appointment, onClose, onSuccess }
         e.preventDefault();
         
         if (!isMoreThanFourHoursAway()) {
-            setError('Appointments can only be edited if they are more than 4 hours away. Please contact the centre.');
+            setError('Appointments can only be edited if they are more than 4 hours away. Please contact the center.');
             return;
         }
 
@@ -60,7 +60,7 @@ export default function EditAppointmentModal({ appointment, onClose, onSuccess }
                     <h3 className="text-xl font-bold mb-4 text-red-600">Cannot Edit Appointment</h3>
                     <p className="text-gray-700 mb-6">
                         Appointments can only be edited if they are more than 4 hours away. 
-                        Please contact the centre to make changes.
+                        Please contact the center to make changes.
                     </p>
                     <button
                         onClick={onClose}

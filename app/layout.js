@@ -2,10 +2,10 @@ import "./globals.css";
 
 export const metadata = {
   // Primary Meta Tags
-  title: "Dr. Anjali Gupta - Women Wellness Centre | Book Appointment Online",
-  description: "Schedule your appointment with Dr. Anjali Gupta at Women Wellness Centre. Expert gynecological care, women's health services, and comprehensive wellness treatments in Agra. Easy online booking available.",
+  title: "Dr. Anjali Gupta - Women Wellness Center | Book Appointment Online",
+  description: "Schedule your appointment with Dr. Anjali Gupta at Women Wellness Center. Expert gynecological care, women's health services, and comprehensive wellness treatments in Agra. Easy online booking available.",
   keywords: "Dr. Anjali Gupta, women wellness, gynecologist appointment, women's health, book appointment, gynecology clinic, women healthcare, Agra gynecologist, online appointment booking",
-  authors: [{ name: "Dr. Anjali Women Wellness Centre" }],
+  authors: [{ name: "Dr. Anjali Women Wellness Center" }],
   
   // Verification and Indexing
   robots: {
@@ -22,15 +22,15 @@ export const metadata = {
     type: "website",
     locale: "en_IN",
     url: "https://appointment.dranjaligupta.in",
-    siteName: "Dr. Anjali Women Wellness Centre",
-    title: "Dr. Anjali Gupta - Women Wellness Centre | Book Appointment Online",
+    siteName: "Dr. Anjali Women Wellness Center",
+    title: "Dr. Anjali Gupta - Women Wellness Center | Book Appointment Online",
     description: "Schedule your appointment with Dr. Anjali Gupta. Expert women's health care and wellness services. Easy online booking available.",
   },
   
   // Twitter
   twitter: {
     card: "summary_large_image",
-    title: "Dr. Anjali Gupta - Women Wellness Centre | Book Appointment",
+    title: "Dr. Anjali Gupta - Women Wellness Center | Book Appointment",
     description: "Schedule your appointment with Dr. Anjali Gupta. Expert women's health care and wellness services.",
   },
   
@@ -65,7 +65,7 @@ export default function RootLayout({ children }) {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "MedicalBusiness",
-              "name": "Dr. Anjali Women Wellness Centre",
+              "name": "Dr. Anjali Women Wellness Center",
               "image": "https://appointment.dranjaligupta.in/images/clinic-logo.jpg",
               "url": "https://appointment.dranjaligupta.in",
               "telephone": "+91-7300843777", // Add your phone number
@@ -94,7 +94,7 @@ export default function RootLayout({ children }) {
               "medicalSpecialty": ["Gynecology", "Women's Health"],
               "memberOf": {
                 "@type": "MedicalOrganization",
-                "name": "Dr. Anjali Women Wellness Centre"
+                "name": "Dr. Anjali Women Wellness Center"
               },
               "url": "https://appointment.dranjaligupta.in"
             })
@@ -108,7 +108,7 @@ export default function RootLayout({ children }) {
             __html: JSON.stringify({
               "@context": "https://schema.org",
               "@type": "WebSite",
-              "name": "Dr. Anjali Women Wellness Centre",
+              "name": "Dr. Anjali Women Wellness Center",
               "url": "https://appointment.dranjaligupta.in",
               "potentialAction": {
                 "@type": "ReserveAction",

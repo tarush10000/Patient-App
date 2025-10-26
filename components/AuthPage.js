@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { AlertCircle, Phone, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Phone, User, AlertCircle } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function AuthPage({ initialMode = 'login' }) {
     const router = useRouter();
@@ -213,7 +213,7 @@ export default function AuthPage({ initialMode = 'login' }) {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center">
-                    <h1 className="text-2xl font-bold">Dr. Anjali Women Wellness Centre</h1>
+                    <h1 className="text-2xl font-bold">Dr. Anjali Women Wellness Center</h1>
                     <p className="text-sm mt-1 opacity-90">
                         {authMode === 'login' ? 'Welcome back!' : 'Create your account'}
                     </p>

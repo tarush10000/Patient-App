@@ -1,7 +1,7 @@
 'use client';
 
+import { Calendar, Check, Clock, Edit2, FileText, Trash2, X } from 'lucide-react';
 import { useState } from 'react';
-import { Calendar, Clock, FileText, Trash2, Edit2, Check, X } from 'lucide-react';
 
 export default function AppointmentCard({ appointment, onCancel, onComplete, onEdit, userRole = 'patient' }) {
     const [showEditWarning, setShowEditWarning] = useState(false);
@@ -168,7 +168,7 @@ export default function AppointmentCard({ appointment, onCancel, onComplete, onE
                         <h3 className="text-xl font-bold mb-4 text-red-600">Cannot Edit Appointment</h3>
                         <p className="text-gray-700 mb-6">
                             Appointments can only be edited if they are more than 4 hours away. 
-                            Please contact the centre to make changes.
+                            Please contact the center to make changes.
                         </p>
                         <button
                             onClick={() => setShowEditWarning(false)}
