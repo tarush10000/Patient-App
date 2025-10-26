@@ -20,7 +20,7 @@ const BillSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['paid', 'unpaid', 'partial'],
+        enum: ['paid', 'unpaid'],
         default: 'unpaid'
     },
     billDate: {

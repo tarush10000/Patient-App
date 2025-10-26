@@ -125,12 +125,6 @@ export default function CollectionStats({ stats }) {
                                     <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
                                         <span>{mode.percentage}% of paid</span>
                                     </div>
-                                    <div className="w-full bg-gray-200 rounded-full h-2">
-                                        <div
-                                            className={`h-2 rounded-full ${mode.textColor.replace('text', 'bg')}`}
-                                            style={{ width: `${mode.percentage}%` }}
-                                        ></div>
-                                    </div>
                                 </div>
                             </div>
                         );

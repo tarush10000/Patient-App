@@ -8,6 +8,7 @@ import StaffBottomNav from '@/components/StaffBottomNav';
 import CollectionChart from '@/components/CollectionChart';
 import CollectionTable from '@/components/CollectionTable';
 import CollectionStats from '@/components/CollectionStats';
+import CreateBillModal from '@/components/CreateBillModal';
 import { api } from '@/lib/api';
 
 export default function CollectionsPage() {
@@ -16,6 +17,8 @@ export default function CollectionsPage() {
     const [bills, setBills] = useState([]);
     const [filteredBills, setFilteredBills] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [isModalOpen, setIsModalOpen] = useState(false);
+    const [editingBill, setEditingBill] = useState(null);   
     
     // Filters
     const [dateFilter, setDateFilter] = useState('today'); // today, week, month, custom
@@ -54,6 +57,43 @@ export default function CollectionsPage() {
             calculateStats();
         }
     }, [filteredBills]);
+
+    const handleEditBill = (billData) => {
+        setEditingBill(billData);
+        setIsModalOpen(true);
+    };
+    const handleSaveBill = async (billData) => {
+        try {
+            setLoading(true);
+            // setError(null);
+
+            if (editingBill) {
+                // ✅ Update existing bill
+                const response = await api.updateBill(editingBill._id, billData);
+                console.log(response.message);
+            } else {
+                // ✅ Create new bill
+                const response = await api.createBill(billData);
+                console.log(response.message);
+            }
+            
+            // Refresh bills list
+            await fetchBills();
+            
+            // Close modal
+            handleCloseModal();
+        } catch (err) {
+            console.error('Error saving bill:', err);
+            // setError(err.message);
+            alert(`Error: ${err.message}`);
+        } finally {
+            setLoading(false);
+        }
+    };
+    const handleCloseModal = () => {
+        setIsModalOpen(false);
+        setEditingBill(null);  // Clear editing state
+    };
 
     const checkAuth = () => {
         const token = api.getToken();
@@ -326,7 +366,7 @@ export default function CollectionsPage() {
                             <select
                                 value={dateFilter}
                                 onChange={(e) => setDateFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                             >
                                 <option value="today">Today</option>
                                 <option value="week">Last 7 Days</option>
@@ -343,7 +383,7 @@ export default function CollectionsPage() {
                             <select
                                 value={paymentModeFilter}
                                 onChange={(e) => setPaymentModeFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                             >
                                 <option value="all">All Modes</option>
                                 <option value="cash">Cash</option>
@@ -361,7 +401,7 @@ export default function CollectionsPage() {
                             <select
                                 value={statusFilter}
                                 onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                             >
                                 <option value="all">All Status</option>
                                 <option value="paid">Paid</option>
@@ -413,7 +453,14 @@ export default function CollectionsPage() {
                 <CollectionChart bills={filteredBills} dateFilter={dateFilter} paymentModeFilter={paymentModeFilter} />
 
                 {/* Detailed Table */}
-                <CollectionTable bills={filteredBills} />
+                <CollectionTable bills={filteredBills} onEditBill={handleEditBill} />
+
+                <CreateBillModal
+                    isOpen={isModalOpen}
+                    onClose={handleCloseModal}
+                    onSave={handleSaveBill}
+                    editingBill={editingBill}  // Pass the editing bill
+                />
             </main>
 
             <StaffBottomNav activeScreen="collections" userRole={currentUser?.role} />
