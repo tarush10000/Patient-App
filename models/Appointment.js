@@ -8,11 +8,13 @@ const AppointmentSchema = new mongoose.Schema({
     },
     fullName: {
         type: String,
-        required: true
+        required: true,
+        trim: true
     },
     phone: {
         type: String,
-        required: true
+        required: true,
+        trim: true
     },
     appointmentDate: {
         type: Date,
@@ -33,27 +35,32 @@ const AppointmentSchema = new mongoose.Schema({
     },
     status: {
         type: String,
-        enum: ['upcoming', 'completed', 'cancelled', 'no-show', 'seen'],
+        enum: ['upcoming', 'seen', 'cancelled'],
         default: 'upcoming'
+    },
+    // Reminder tracking fields
+    reminderSent: {
+        type: Boolean,
+        default: false
+    },
+    reminderSentAt: {
+        type: Date,
+        default: null
     },
     createdBy: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User'
-    },
-    createdAt: {
-        type: Date,
-        default: Date.now
-    },
-    updatedAt: {
-        type: Date,
-        default: Date.now
     }
 }, {
     timestamps: true
 });
 
-// Index for efficient queries
-AppointmentSchema.index({ patientId: 1, appointmentDate: 1 });
-AppointmentSchema.index({ appointmentDate: 1, timeSlot: 1 });
+// Index for efficient querying of upcoming appointments needing reminders
+AppointmentSchema.index({ status: 1, reminderSent: 1, appointmentDate: 1 });
 
-export default mongoose.models.Appointment || mongoose.model('Appointment', AppointmentSchema);
+// Index for finding appointments by phone and date
+AppointmentSchema.index({ phone: 1, appointmentDate: 1 });
+
+const Appointment = mongoose.models.Appointment || mongoose.model('Appointment', AppointmentSchema);
+
+export default Appointment;
