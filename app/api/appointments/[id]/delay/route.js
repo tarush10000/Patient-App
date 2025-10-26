@@ -38,26 +38,43 @@ export async function PATCH(request, { params }) {
             return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
         }
 
-        // Parse the current time slot
+        // Parse the current time slot to get the ACTUAL appointment time
         const oldTimeSlot = appointment.timeSlot;
-        const [startTime, endTime] = appointment.timeSlot.split(' - ');
-        const [time, period] = startTime.split(' ');
-        const [hours, minutes] = time.split(':').map(Number);
 
-        // Calculate new time
-        let totalMinutes = hours * 60 + minutes + delayMinutes;
-        if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-        if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+        // Count how many appointments were BEFORE this one in the same slot
+        const appointmentsBefore = await Appointment.countDocuments({
+            appointmentDate: appointment.appointmentDate,
+            timeSlot: appointment.timeSlot,
+            createdAt: { $lt: appointment.createdAt },
+            status: { $in: ['upcoming', 'seen'] }
+        });
 
-        const newHours = Math.floor(totalMinutes / 60) % 24;
-        const newMinutes = totalMinutes % 60;
+        // Calculate the OLD actual appointment time based on queue position
+        const [oldStartTime, oldPeriod] = oldTimeSlot.split(' - ')[0].split(' ');
+        const [oldHours, oldMinutes] = oldStartTime.split(':').map(Number);
+
+        let oldTotalMinutes = oldHours * 60 + oldMinutes + (appointmentsBefore * 15);
+        if (oldPeriod === 'PM' && oldHours !== 12) oldTotalMinutes += 12 * 60;
+        if (oldPeriod === 'AM' && oldHours === 12) oldTotalMinutes -= 12 * 60;
+
+        const oldActualHours = Math.floor(oldTotalMinutes / 60) % 24;
+        const oldActualMinutes = oldTotalMinutes % 60;
+        const oldActualPeriod = oldActualHours >= 12 ? 'PM' : 'AM';
+        const oldDisplayHours = oldActualHours > 12 ? oldActualHours - 12 : (oldActualHours === 0 ? 12 : oldActualHours);
+        const oldActualTime = `${oldDisplayHours}:${oldActualMinutes.toString().padStart(2, '0')} ${oldActualPeriod}`;
+
+        // Calculate NEW time by adding delay to the actual appointment time
+        const newTotalMinutes = oldTotalMinutes + delayMinutes;
+
+        const newHours = Math.floor(newTotalMinutes / 60) % 24;
+        const newMinutes = newTotalMinutes % 60;
         const newPeriod = newHours >= 12 ? 'PM' : 'AM';
         const displayHours = newHours > 12 ? newHours - 12 : (newHours === 0 ? 12 : newHours);
 
         const newStartTime = `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
 
         // Calculate new end time (15 minutes after start)
-        const endTotalMinutes = totalMinutes + 15;
+        const endTotalMinutes = newTotalMinutes + 15;
         const endHours = Math.floor(endTotalMinutes / 60) % 24;
         const endMins = endTotalMinutes % 60;
         const endPeriod = endHours >= 12 ? 'PM' : 'AM';
@@ -70,7 +87,7 @@ export async function PATCH(request, { params }) {
         appointment.timeSlot = newTimeSlot;
         await appointment.save();
 
-        // Send reschedule notification via WhatsApp
+        // Send reschedule notification via WhatsApp with ACTUAL times
         try {
             const formattedDate = new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
                 day: 'numeric',
@@ -82,9 +99,9 @@ export async function PATCH(request, { params }) {
                 {
                     patientName: appointment.fullName,
                     oldDate: formattedDate,
-                    oldTimeSlot: oldTimeSlot.split(' - ')[0],  // Original time before update
+                    oldTimeSlot: oldActualTime,  // Use calculated actual time
                     newDate: formattedDate,
-                    newTimeSlot: newStartTime
+                    newTimeSlot: newStartTime    // Use the new actual time
                 }
             );
         } catch (msgError) {
