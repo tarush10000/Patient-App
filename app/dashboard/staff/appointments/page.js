@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Search, Filter, X, CheckCircle, XCircle, Trash2, ClockIcon, DollarSign, Edit } from 'lucide-react';
+import { Calendar, Search, Filter, X, CheckCircle, XCircle, Trash2, ClockIcon, DollarSign, Edit, Plus } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
@@ -12,12 +12,13 @@ export default function StaffAppointmentsPage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [appointments, setAppointments] = useState([]);
     const [filteredAppointments, setFilteredAppointments] = useState([]);
+    const [groupedAppointments, setGroupedAppointments] = useState({});
     const [loading, setLoading] = useState(true);
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
     const [statusFilter, setStatusFilter] = useState('all');
-    const [dateFilter, setDateFilter] = useState('all');
+    const [dateFilter, setDateFilter] = useState('today');
     const [consultationTypeFilter, setConsultationTypeFilter] = useState('all');
     const [selectedDate, setSelectedDate] = useState('');
 
@@ -56,9 +57,15 @@ export default function StaffAppointmentsPage() {
     const fetchAllAppointments = async () => {
         try {
             const response = await api.getAppointments();
-            const sorted = (response.appointments || []).sort((a, b) =>
-                new Date(b.appointmentDate) - new Date(a.appointmentDate)
-            );
+            const sorted = (response.appointments || []).sort((a, b) => {
+                const dateCompare = new Date(b.appointmentDate) - new Date(a.appointmentDate);
+                if (dateCompare !== 0) return dateCompare;
+                
+                // If same date, sort by time slot
+                const timeA = a.timeSlot.split(' - ')[0];
+                const timeB = b.timeSlot.split(' - ')[0];
+                return timeA.localeCompare(timeB);
+            });
             setAppointments(sorted);
         } catch (error) {
             console.error('Error fetching appointments:', error);
@@ -86,24 +93,22 @@ export default function StaffAppointmentsPage() {
         }
 
         // Date filter
-        const now = new Date();
-        now.setHours(0, 0, 0, 0);
-
         if (dateFilter === 'today') {
-            const tomorrow = new Date(now);
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const tomorrow = new Date(today);
             tomorrow.setDate(tomorrow.getDate() + 1);
+
             filtered = filtered.filter(apt => {
                 const aptDate = new Date(apt.appointmentDate);
-                return aptDate >= now && aptDate < tomorrow;
+                return aptDate >= today && aptDate < tomorrow;
             });
         } else if (dateFilter === 'upcoming') {
-            filtered = filtered.filter(apt =>
-                new Date(apt.appointmentDate) >= now
-            );
+            const now = new Date();
+            filtered = filtered.filter(apt => new Date(apt.appointmentDate) >= now);
         } else if (dateFilter === 'past') {
-            filtered = filtered.filter(apt =>
-                new Date(apt.appointmentDate) < now
-            );
+            const now = new Date();
+            filtered = filtered.filter(apt => new Date(apt.appointmentDate) < now);
         } else if (dateFilter === 'custom' && selectedDate) {
             const selected = new Date(selectedDate);
             selected.setHours(0, 0, 0, 0);
@@ -118,20 +123,47 @@ export default function StaffAppointmentsPage() {
 
         // Consultation type filter
         if (consultationTypeFilter !== 'all') {
-            filtered = filtered.filter(apt =>
-                apt.consultationType === consultationTypeFilter
-            );
+            filtered = filtered.filter(apt => apt.consultationType === consultationTypeFilter);
         }
 
+        // Sort by date and time
+        filtered.sort((a, b) => {
+            const dateCompare = new Date(a.appointmentDate) - new Date(b.appointmentDate);
+            if (dateCompare !== 0) return dateCompare;
+            
+            const timeA = a.timeSlot.split(' - ')[0];
+            const timeB = b.timeSlot.split(' - ')[0];
+            return timeA.localeCompare(timeB);
+        });
+
         setFilteredAppointments(filtered);
+
+        // Group by date and time slot
+        const grouped = {};
+        filtered.forEach(apt => {
+            const dateKey = formatDate(apt.appointmentDate);
+            if (!grouped[dateKey]) {
+                grouped[dateKey] = {};
+            }
+            const slot = apt.timeSlot;
+            if (!grouped[dateKey][slot]) {
+                grouped[dateKey][slot] = [];
+            }
+            grouped[dateKey][slot].push(apt);
+        });
+
+        setGroupedAppointments(grouped);
     };
 
     const handleStatusUpdate = async (appointmentId, newStatus) => {
         try {
             await api.updateAppointment(appointmentId, { status: newStatus });
+            if (newStatus === 'seen') {
+                alert('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
+            }
             fetchAllAppointments();
         } catch (error) {
-            alert('Failed to update appointment: ' + error.message);
+            alert('Failed to update status: ' + error.message);
         }
     };
 
@@ -141,9 +173,7 @@ export default function StaffAppointmentsPage() {
             return;
         }
 
-        if (!confirm('Are you sure you want to delete this appointment?')) {
-            return;
-        }
+        if (!confirm('Are you sure you want to delete this appointment?')) return;
 
         try {
             await api.deleteAppointment(appointmentId);
@@ -154,14 +184,12 @@ export default function StaffAppointmentsPage() {
     };
 
     const handleDelayAppointment = async (appointmentId, minutes) => {
-        if (!confirm(`Delay this appointment by ${minutes} minutes? The patient will be notified via WhatsApp.`)) {
-            return;
-        }
+        if (!confirm(`Delay by ${minutes} minutes? Patient will be notified via WhatsApp.`)) return;
 
         try {
             await api.delayAppointment(appointmentId, minutes);
             fetchAllAppointments();
-            alert(`✅ Appointment delayed by ${minutes} minutes. Patient has been notified.`);
+            alert(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
         } catch (error) {
             alert('Failed to delay appointment: ' + error.message);
         }
@@ -174,18 +202,11 @@ export default function StaffAppointmentsPage() {
 
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-IN', {
+            weekday: 'short',
             day: 'numeric',
             month: 'short',
             year: 'numeric'
         });
-    };
-
-    const resetFilters = () => {
-        setSearchTerm('');
-        setStatusFilter('all');
-        setDateFilter('all');
-        setConsultationTypeFilter('all');
-        setSelectedDate('');
     };
 
     const getStatusColor = (status) => {
@@ -201,6 +222,22 @@ export default function StaffAppointmentsPage() {
         }
     };
 
+    const calculateActualAppointmentTime = (slot, appointmentIndex) => {
+        const [startTime, period] = slot.split(' - ')[0].split(' ');
+        const [hours, minutes] = startTime.split(':').map(Number);
+        
+        let totalMinutes = hours * 60 + minutes + (appointmentIndex * 15);
+        if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+        if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+        const actualHours = Math.floor(totalMinutes / 60) % 24;
+        const actualMinutes = totalMinutes % 60;
+        const actualPeriod = actualHours >= 12 ? 'PM' : 'AM';
+        const displayHours = actualHours > 12 ? actualHours - 12 : (actualHours === 0 ? 12 : actualHours);
+        
+        return `${displayHours}:${actualMinutes.toString().padStart(2, '0')} ${actualPeriod}`;
+    };
+
     if (loading) {
         return (
             <div className="min-h-screen bg-gray-50 flex items-center justify-center">
@@ -214,225 +251,268 @@ export default function StaffAppointmentsPage() {
             <Header />
 
             <main className="max-w-6xl mx-auto p-4 pb-24">
-                <div className="flex justify-between items-center mb-6">
+                <div className="mb-6">
                     <h2 className="text-2xl font-bold text-gray-800">All Appointments</h2>
-                    <div className="flex items-center gap-2">
-                        <span className="text-sm text-gray-600">
-                            {filteredAppointments.length} of {appointments.length}
-                        </span>
-                        <button
-                            onClick={resetFilters}
-                            className="text-sm text-blue-600 hover:text-blue-800 font-medium"
-                        >
-                            Reset Filters
-                        </button>
-                    </div>
+                    <p className="text-gray-600 mt-1">Manage and view all appointments</p>
                 </div>
 
-                {/* Filters Section */}
-                <div className="bg-white rounded-xl shadow-md p-4 mb-6 space-y-4 text-gray-600">
-                    {/* Search */}
-                    <div className="relative">
-                        <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                        <input
-                            type="text"
-                            placeholder="Search by name, phone, or type..."
-                            value={searchTerm}
-                            onChange={(e) => setSearchTerm(e.target.value)}
-                            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        />
-                    </div>
-
-                    {/* Filter Grid */}
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                        {/* Status Filter */}
-                        <div>
-                            <label className="text-xs font-semibold text-gray-700 mb-1 block">Status</label>
-                            <select
-                                value={statusFilter}
-                                onChange={(e) => setStatusFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="all">All Status</option>
-                                <option value="upcoming">Upcoming</option>
-                                <option value="seen">Seen</option>
-                                <option value="cancelled">Cancelled</option>
-                            </select>
+                {/* Filters */}
+                <div className="bg-white rounded-xl shadow-md p-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-gray-400">
+                        {/* Search */}
+                        <div className="relative">
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                            <input
+                                type="text"
+                                placeholder="Search by name or phone..."
+                                value={searchTerm}
+                                onChange={(e) => setSearchTerm(e.target.value)}
+                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
                         </div>
+
+                        {/* Status Filter */}
+                        <select
+                            value={statusFilter}
+                            onChange={(e) => setStatusFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="all">All Status</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="seen">Seen</option>
+                            <option value="cancelled">Cancelled</option>
+                        </select>
 
                         {/* Date Filter */}
-                        <div>
-                            <label className="text-xs font-semibold text-gray-700 mb-1 block">Date</label>
-                            <select
-                                value={dateFilter}
-                                onChange={(e) => setDateFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="all">All Dates</option>
-                                <option value="today">Today</option>
-                                <option value="upcoming">Upcoming</option>
-                                <option value="past">Past</option>
-                                <option value="custom">Custom Date</option>
-                            </select>
-                        </div>
-
-                        {/* Custom Date Picker */}
-                        {dateFilter === 'custom' && (
-                            <div>
-                                <label className="text-xs font-semibold text-gray-700 mb-1 block">Select Date</label>
-                                <input
-                                    type="date"
-                                    value={selectedDate}
-                                    onChange={(e) => setSelectedDate(e.target.value)}
-                                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                                />
-                            </div>
-                        )}
+                        <select
+                            value={dateFilter}
+                            onChange={(e) => setDateFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="all">All Dates</option>
+                            <option value="today">Today</option>
+                            <option value="upcoming">Upcoming</option>
+                            <option value="past">Past</option>
+                            <option value="custom">Custom Date</option>
+                        </select>
 
                         {/* Consultation Type Filter */}
-                        <div>
-                            <label className="text-xs font-semibold text-gray-700 mb-1 block">Type</label>
-                            <select
-                                value={consultationTypeFilter}
-                                onChange={(e) => setConsultationTypeFilter(e.target.value)}
-                                className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
-                            >
-                                <option value="all">All Types</option>
-                                <option value="General Check-up">General Check-up</option>
-                                <option value="Follow-up">Follow-up</option>
-                                <option value="Specialist Consultation">Specialist</option>
-                                <option value="Emergency">Emergency</option>
-                            </select>
-                        </div>
+                        <select
+                            value={consultationTypeFilter}
+                            onChange={(e) => setConsultationTypeFilter(e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        >
+                            <option value="all">All Types</option>
+                            <option value="general-consultation">General Consultation</option>
+                            <option value="follow-up">Follow Up</option>
+                            <option value="emergency">Emergency</option>
+                            <option value="tests">Tests</option>
+                        </select>
                     </div>
-                </div>
 
-                {/* Appointments List */}
-                <div className="space-y-4">
-                    {filteredAppointments.length === 0 ? (
-                        <div className="bg-white rounded-xl shadow-md p-12 text-center">
-                            <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-                            <p className="text-gray-500 text-lg">No appointments found</p>
-                            <p className="text-gray-400 text-sm mt-2">Try adjusting your filters</p>
+                    {/* Custom Date Picker */}
+                    {dateFilter === 'custom' && (
+                        <div className="mt-4">
+                            <input
+                                type="date"
+                                value={selectedDate}
+                                onChange={(e) => setSelectedDate(e.target.value)}
+                                className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            />
                         </div>
-                    ) : (
-                        filteredAppointments.map((apt) => (
-                            <div key={apt._id} className="bg-white rounded-xl shadow-md p-5 hover:shadow-lg transition">
-                                <div className="flex flex-col lg:flex-row justify-between gap-4">
-                                    {/* Appointment Details */}
-                                    <div className="flex-1">
-                                        <div className="flex items-start justify-between mb-3">
-                                            <div>
-                                                <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
-                                                <p className="text-sm text-gray-600">📞 {apt.phone}</p>
-                                            </div>
-                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(apt.status)}`}>
-                                                {apt.status}
-                                            </span>
-                                        </div>
+                    )}
 
-                                        <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-sm mb-2">
-                                            <div className="flex items-center gap-2 text-gray-700">
-                                                <Calendar size={16} className="text-blue-600" />
-                                                <span>{formatDate(apt.appointmentDate)}</span>
-                                            </div>
-                                            <div className="flex items-center gap-2 text-gray-700">
-                                                <ClockIcon size={16} className="text-green-600" />
-                                                <span className="font-semibold">{apt.timeSlot}</span>
-                                            </div>
-                                            <div className="text-gray-700">
-                                                <span className="font-medium">{apt.consultationType}</span>
-                                            </div>
-                                        </div>
-
-                                        {apt.additionalMessage && (
-                                            <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded mt-2">
-                                                💬 {apt.additionalMessage}
-                                            </p>
-                                        )}
-                                    </div>
-
-                                    {/* Action Buttons */}
-                                    <div className="flex flex-col gap-2 min-w-[200px]">
-                                        {apt.status === 'upcoming' && (
-                                            <>
-                                                {/* Primary Actions */}
-                                                <div className="flex gap-2">
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(apt._id, 'seen')}
-                                                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
-                                                    >
-                                                        <CheckCircle size={16} />
-                                                        Seen
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
-                                                        className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition text-sm font-medium"
-                                                    >
-                                                        <XCircle size={16} />
-                                                        Cancel
-                                                    </button>
-                                                </div>
-
-                                                {/* Delay Options */}
-                                                <div className="grid grid-cols-3 gap-1">
-                                                    <button
-                                                        onClick={() => handleDelayAppointment(apt._id, 15)}
-                                                        className="px-2 py-1.5 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
-                                                        title="Delay by 15 minutes"
-                                                    >
-                                                        +15m
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelayAppointment(apt._id, 30)}
-                                                        className="px-2 py-1.5 bg-orange-50 text-orange-700 rounded-lg hover:bg-orange-100 transition text-xs font-medium border border-orange-200"
-                                                        title="Delay by 30 minutes"
-                                                    >
-                                                        +30m
-                                                    </button>
-                                                    <button
-                                                        onClick={() => handleDelayAppointment(apt._id, 60)}
-                                                        className="px-2 py-1.5 bg-red-50 text-red-700 rounded-lg hover:bg-red-100 transition text-xs font-medium border border-red-200"
-                                                        title="Delay by 1 hour"
-                                                    >
-                                                        +1hr
-                                                    </button>
-                                                </div>
-
-                                                {/* Add Bill */}
-                                                <button
-                                                    onClick={() => handleAddBill(apt)}
-                                                    className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
-                                                >
-                                                    <DollarSign size={16} />
-                                                    Add Bill
-                                                </button>
-                                            </>
-                                        )}
-
-                                        {/* Admin Delete */}
-                                        {currentUser?.role === 'admin' && (
-                                            <button
-                                                onClick={() => handleDeleteAppointment(apt._id)}
-                                                className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
-                                            >
-                                                <Trash2 size={16} />
-                                                Delete
-                                            </button>
-                                        )}
-
-                                        {/* Status for completed */}
-                                        {currentUser?.role === 'reception' && apt.status !== 'upcoming' && (
-                                            <div className="text-xs text-gray-400 text-center p-2 bg-gray-50 rounded">
-                                                {apt.status === 'seen' ? 'Completed ✓' : 'Cancelled ✗'}
-                                            </div>
-                                        )}
-                                    </div>
-                                </div>
-                            </div>
-                        ))
+                    {/* Active Filters Display */}
+                    {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || consultationTypeFilter !== 'all') && (
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <span className="text-sm text-gray-600 font-medium">Active Filters:</span>
+                            {searchTerm && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                    Search: {searchTerm}
+                                    <X size={14} className="cursor-pointer" onClick={() => setSearchTerm('')} />
+                                </span>
+                            )}
+                            {statusFilter !== 'all' && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                    Status: {statusFilter}
+                                    <X size={14} className="cursor-pointer" onClick={() => setStatusFilter('all')} />
+                                </span>
+                            )}
+                            {dateFilter !== 'all' && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                    Date: {dateFilter}
+                                    <X size={14} className="cursor-pointer" onClick={() => setDateFilter('all')} />
+                                </span>
+                            )}
+                            {consultationTypeFilter !== 'all' && (
+                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                    Type: {consultationTypeFilter}
+                                    <X size={14} className="cursor-pointer" onClick={() => setConsultationTypeFilter('all')} />
+                                </span>
+                            )}
+                        </div>
                     )}
                 </div>
+
+                {/* Results Count */}
+                <div className="mb-4 text-sm text-gray-600">
+                    Showing {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
+                </div>
+
+                {/* Appointments List - Grouped by Date and Time Slot */}
+                {filteredAppointments.length === 0 ? (
+                    <div className="bg-white rounded-xl shadow-md p-12 text-center">
+                        <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
+                        <p className="text-gray-500 text-lg">No appointments found</p>
+                        <p className="text-gray-400 text-sm mt-2">Try adjusting your filters</p>
+                    </div>
+                ) : (
+                    <div className="space-y-8">
+                        {Object.entries(groupedAppointments).map(([date, slotsData]) => (
+                            <div key={date} className="space-y-4">
+                                {/* Date Header */}
+                                <div className="flex items-center gap-3 mb-4">
+                                    <Calendar className="text-blue-600" size={20} />
+                                    <h3 className="text-lg font-bold text-gray-800">{date}</h3>
+                                    <div className="flex-1 h-px bg-gray-300"></div>
+                                </div>
+
+                                {/* Time Slots for this Date */}
+                                {Object.entries(slotsData).map(([timeSlot, appointments]) => (
+                                    <div key={timeSlot} className="bg-white rounded-xl shadow-md overflow-hidden">
+                                        {/* Time Slot Header */}
+                                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-3">
+                                            <div className="flex justify-between items-center">
+                                                <div className="flex items-center gap-3">
+                                                    <ClockIcon size={20} />
+                                                    <h4 className="font-bold text-lg">{timeSlot}</h4>
+                                                </div>
+                                                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-gray-500">
+                                                    {appointments.length} {appointments.length === 1 ? 'Patient' : 'Patients'}
+                                                </span>
+                                            </div>
+                                        </div>
+
+                                        {/* Appointments in this slot */}
+                                        <div className="divide-y divide-gray-200">
+                                            {appointments.map((apt, index) => (
+                                                <div key={apt._id} className="p-5 hover:bg-gray-50 transition">
+                                                    <div className="flex flex-col lg:flex-row justify-between gap-4">
+                                                        {/* Appointment Details */}
+                                                        <div className="flex-1">
+                                                            <div className="flex items-start justify-between mb-3">
+                                                                <div>
+                                                                    <div className="flex items-center gap-2 mb-1">
+                                                                        <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">
+                                                                            #{index + 1}
+                                                                        </span>
+                                                                        <span className="text-sm font-semibold text-gray-600">
+                                                                            ~{calculateActualAppointmentTime(timeSlot, index)}
+                                                                        </span>
+                                                                    </div>
+                                                                    <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
+                                                                    <p className="text-sm text-gray-600">📞 {apt.phone}</p>
+                                                                </div>
+                                                                <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(apt.status)}`}>
+                                                                    {apt.status}
+                                                                </span>
+                                                            </div>
+
+                                                            <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
+                                                                <div className="text-gray-700">
+                                                                    <span className="font-medium">{apt.consultationType?.replace(/-/g, ' ').toUpperCase()}</span>
+                                                                </div>
+                                                                {apt.additionalMessage && (
+                                                                    <div className="col-span-2 mt-2">
+                                                                        <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
+                                                                            💬 {apt.additionalMessage}
+                                                                        </p>
+                                                                    </div>
+                                                                )}
+                                                            </div>
+                                                        </div>
+
+                                                        {/* Action Buttons */}
+                                                        <div className="flex flex-col gap-2 min-w-[200px]">
+                                                            {apt.status === 'upcoming' && (
+                                                                <>
+                                                                    <div className="flex gap-2">
+                                                                        <button
+                                                                            onClick={() => handleStatusUpdate(apt._id, 'seen')}
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                                        >
+                                                                            <CheckCircle size={16} />
+                                                                            Seen
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                                        >
+                                                                            <XCircle size={16} />
+                                                                            Cancel
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <div className="flex gap-2 text-xs">
+                                                                        <button
+                                                                            onClick={() => handleDelayAppointment(apt._id, 15)}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                        >
+                                                                            <ClockIcon size={14} className="inline mr-1" />
+                                                                            +15m
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDelayAppointment(apt._id, 30)}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                        >
+                                                                            <ClockIcon size={14} className="inline mr-1" />
+                                                                            +30m
+                                                                        </button>
+                                                                        <button
+                                                                            onClick={() => handleDelayAppointment(apt._id, 60)}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                        >
+                                                                            <ClockIcon size={14} className="inline mr-1" />
+                                                                            +1hr
+                                                                        </button>
+                                                                    </div>
+
+                                                                    <button
+                                                                        onClick={() => handleAddBill(apt)}
+                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
+                                                                    >
+                                                                        <DollarSign size={16} />
+                                                                        Add Bill
+                                                                    </button>
+                                                                </>
+                                                            )}
+
+                                                            {currentUser?.role === 'admin' && (
+                                                                <button
+                                                                    onClick={() => handleDeleteAppointment(apt._id)}
+                                                                    className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                                >
+                                                                    <Trash2 size={16} />
+                                                                    Delete
+                                                                </button>
+                                                            )}
+
+                                                            {currentUser?.role === 'reception' && apt.status !== 'upcoming' && (
+                                                                <div className="text-xs text-gray-400 text-center p-2 bg-gray-50 rounded">
+                                                                    {apt.status === 'seen' ? 'Completed ✓' : 'Cancelled ✗'}
+                                                                </div>
+                                                            )}
+                                                        </div>
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ))}
+                    </div>
+                )}
             </main>
 
             {/* Bill Modal */}
@@ -456,29 +536,25 @@ export default function StaffAppointmentsPage() {
     );
 }
 
+// Bill Modal Component
 function BillModal({ appointment, onClose, onSuccess }) {
     const [billItems, setBillItems] = useState([]);
     const [existingBills, setExistingBills] = useState([]);
-    const [newItem, setNewItem] = useState({
-        service: '',
-        amount: '',
-        paymentMethod: 'Cash'
-    });
+    const [newItem, setNewItem] = useState({ service: '', amount: '', paymentMethod: 'Cash' });
     const [editingIndex, setEditingIndex] = useState(null);
     const [loading, setLoading] = useState(false);
     const [loadingBills, setLoadingBills] = useState(true);
-    const [isPaid, setIsPaid] = useState(true); // Default to paid
+    const [isPaid, setIsPaid] = useState(true);
 
     const quickServices = [
-        { name: 'ECG', amount: 300, paymentMethod: 'Cash' },
+        { name: 'Consultation', amount: 1000, paymentMethod: 'UPI' },
         { name: 'Consultation', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'PAC', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Blood Test', amount: 500, paymentMethod: 'Cash' }
+        { name: 'Tests', amount: 1000, paymentMethod: 'Cash' },
+        { name: 'Tests', amount: 1000, paymentMethod: 'UPI' }
     ];
 
     const paymentMethods = ['Cash', 'UPI', 'Card', 'Online'];
 
-    // Load existing bills for this appointment
     useEffect(() => {
         fetchExistingBills();
     }, []);
@@ -516,11 +592,7 @@ function BillModal({ appointment, onClose, onSuccess }) {
     };
 
     const addQuickService = (service) => {
-        setBillItems([...billItems, {
-            service: service.name,
-            amount: service.amount,
-            paymentMethod: service.paymentMethod
-        }]);
+        setBillItems([...billItems, { service: service.name, amount: service.amount, paymentMethod: service.paymentMethod }]);
     };
 
     const editItem = (index) => {
@@ -548,14 +620,8 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
         setLoading(true);
         try {
-            const billString = billItems
-                .map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`)
-                .join(', ');
-
-            const patientId = appointment.patientId?._id
-                || appointment.patientId
-                || appointment.userId?._id
-                || appointment.userId;
+            const billString = billItems.map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`).join(', ');
+            const patientId = appointment.patientId?._id || appointment.patientId || appointment.userId?._id || appointment.userId;
 
             if (!patientId) {
                 throw new Error('Patient ID not found in appointment data');
@@ -590,39 +656,35 @@ function BillModal({ appointment, onClose, onSuccess }) {
                     </button>
                 </div>
 
-                {/* Existing Bills Section */}
                 {loadingBills ? (
                     <div className="mb-4 p-4 bg-gray-50 rounded-lg">
                         <p className="text-sm text-gray-600">Loading existing bills...</p>
                     </div>
                 ) : existingBills.length > 0 && (
                     <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 className="text-sm font-semibold text-blue-900 mb-2">📋 Existing Bills for this Appointment:</h4>
-                        {existingBills.map((bill, idx) => (
-                            <div key={bill._id} className="mb-2 p-3 bg-white rounded border border-blue-100">
-                                <div className="flex justify-between items-start">
-                                    <div className="flex-1">
-                                        <p className="text-sm font-medium text-gray-800">Bill #{idx + 1}</p>
-                                        <p className="text-xs text-gray-600 mt-1">
-                                            {bill.items}
-                                        </p>
-                                    </div>
-                                    <div className="text-right ml-4">
-                                        <p className="font-semibold text-gray-900">₹{bill.totalAmount}</p>
-                                        <span className={`text-xs px-2 py-1 rounded-full ${bill.status === 'paid'
-                                                ? 'bg-green-100 text-green-700'
-                                                : 'bg-red-100 text-red-700'
-                                            }`}>
-                                            {bill.status}
-                                        </span>
+                        <h4 className="text-sm font-semibold text-blue-900 mb-2">📋 Existing Bills:</h4>
+                        {existingBills.map((bill, idx) => {
+                            const items = bill.items?.split(',').map(item => item.trim()) || [];
+                            return (
+                                <div key={bill._id} className="mb-2 p-3 bg-white rounded border border-blue-100">
+                                    <div className="flex justify-between items-start">
+                                        <div className="flex-1">
+                                            <p className="text-sm font-medium text-gray-800">Bill #{idx + 1}</p>
+                                            <p className="text-xs text-gray-600 mt-1">{items.join(', ')}</p>
+                                        </div>
+                                        <div className="text-right ml-4">
+                                            <p className="font-semibold text-gray-900">₹{bill.totalAmount}</p>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${bill.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'}`}>
+                                                {bill.status}
+                                            </span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        ))}
+                            );
+                        })}
                     </div>
                 )}
 
-                {/* Quick Add Services */}
                 <div className="mb-4">
                     <p className="text-sm font-semibold text-gray-700 mb-2">Quick Add:</p>
                     <div className="grid grid-cols-2 gap-2">
@@ -630,152 +692,98 @@ function BillModal({ appointment, onClose, onSuccess }) {
                             <button
                                 key={idx}
                                 onClick={() => addQuickService(service)}
-                                className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm border border-blue-200 text-left"
+                                className="px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
                             >
-                                <div className="font-medium">{service.name}</div>
-                                <div className="text-xs">₹{service.amount} • {service.paymentMethod}</div>
+                                {service.name} - ₹{service.amount} ({service.paymentMethod})
                             </button>
                         ))}
                     </div>
                 </div>
 
-                {/* Manual Add Item */}
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">
-                        {editingIndex !== null ? 'Edit Item:' : 'Add Custom Item:'}
-                    </p>
-                    <div className="grid grid-cols-1 md:grid-cols-4 gap-2">
+                <div className="mb-4 p-4 bg-gray-50 rounded-lg">
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-3 mb-3">
                         <input
                             type="text"
-                            placeholder="Service"
+                            placeholder="Service name"
                             value={newItem.service}
                             onChange={(e) => setNewItem({ ...newItem, service: e.target.value })}
-                            className="px-3 py-2 border rounded-lg text-gray-600"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                         <input
                             type="number"
                             placeholder="Amount"
                             value={newItem.amount}
                             onChange={(e) => setNewItem({ ...newItem, amount: e.target.value })}
-                            className="px-3 py-2 border rounded-lg text-gray-600"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         />
                         <select
                             value={newItem.paymentMethod}
                             onChange={(e) => setNewItem({ ...newItem, paymentMethod: e.target.value })}
-                            className="px-3 py-2 border rounded-lg text-gray-600"
+                            className="px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                         >
                             {paymentMethods.map(method => (
                                 <option key={method} value={method}>{method}</option>
                             ))}
                         </select>
-                        <button
-                            onClick={addItem}
-                            className={`px-4 py-2 ${editingIndex !== null ? 'bg-blue-600 hover:bg-blue-700' : 'bg-green-600 hover:bg-green-700'} text-white rounded-lg`}
-                        >
-                            {editingIndex !== null ? 'Update' : 'Add'}
-                        </button>
                     </div>
-                    {editingIndex !== null && (
-                        <button
-                            onClick={() => {
-                                setEditingIndex(null);
-                                setNewItem({ service: '', amount: '', paymentMethod: 'Cash' });
-                            }}
-                            className="mt-2 text-sm text-gray-600 hover:text-gray-800"
-                        >
-                            Cancel Edit
-                        </button>
-                    )}
+                    <button
+                        onClick={addItem}
+                        className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition font-medium"
+                    >
+                        {editingIndex !== null ? 'Update Item' : 'Add Item'}
+                    </button>
                 </div>
 
-                {/* Bill Items Table */}
-                <div className="mb-4">
-                    <p className="text-sm font-semibold text-gray-700 mb-2">New Bill Items:</p>
-                    {billItems.length === 0 ? (
-                        <p className="text-gray-500 text-sm text-center py-8">No items added yet</p>
-                    ) : (
-                        <div className="border rounded-lg overflow-hidden">
-                            <table className="w-full text-gray-700">
-                                <thead className="bg-gray-100">
-                                    <tr>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold">Service</th>
-                                        <th className="px-4 py-2 text-right text-sm font-semibold">Amount</th>
-                                        <th className="px-4 py-2 text-left text-sm font-semibold">Method</th>
-                                        <th className="px-4 py-2 text-center text-sm font-semibold">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    {billItems.map((item, idx) => (
-                                        <tr key={idx} className="border-t">
-                                            <td className="px-4 py-2 text-sm">{item.service}</td>
-                                            <td className="px-4 py-2 text-sm text-right">₹{item.amount}</td>
-                                            <td className="px-4 py-2 text-sm">{item.paymentMethod}</td>
-                                            <td className="px-4 py-2 text-center">
-                                                <div className="flex justify-center gap-2">
-                                                    <button
-                                                        onClick={() => editItem(idx)}
-                                                        className="text-blue-600 hover:text-blue-800"
-                                                        title="Edit"
-                                                    >
-                                                        <Edit size={16} />
-                                                    </button>
-                                                    <button
-                                                        onClick={() => removeItem(idx)}
-                                                        className="text-red-600 hover:text-red-800"
-                                                        title="Delete"
-                                                    >
-                                                        <Trash2 size={16} />
-                                                    </button>
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                    <tr className="border-t bg-blue-50 font-bold">
-                                        <td className="px-4 py-3 text-sm">TOTAL</td>
-                                        <td className="px-4 py-3 text-sm text-right">₹{getTotalAmount()}</td>
-                                        <td className="px-4 py-3 text-sm"></td>
-                                        <td className="px-4 py-3 text-sm"></td>
-                                    </tr>
-                                </tbody>
-                            </table>
+                {billItems.length > 0 && (
+                    <div className="mb-4">
+                        <p className="text-sm font-semibold text-gray-700 mb-2">Bill Items:</p>
+                        <div className="space-y-2">
+                            {billItems.map((item, index) => (
+                                <div key={index} className="flex items-center justify-between p-3 bg-white border border-gray-200 rounded-lg">
+                                    <div className="flex-1">
+                                        <p className="font-medium text-gray-800">{item.service}</p>
+                                        <p className="text-sm text-gray-600">{item.paymentMethod}</p>
+                                    </div>
+                                    <div className="flex items-center gap-3">
+                                        <span className="font-semibold text-gray-900">₹{item.amount}</span>
+                                        <div className="flex gap-1">
+                                            <button onClick={() => editItem(index)} className="p-1 text-blue-600 hover:bg-blue-50 rounded">
+                                                <Edit size={16} />
+                                            </button>
+                                            <button onClick={() => removeItem(index)} className="p-1 text-red-600 hover:bg-red-50 rounded">
+                                                <X size={16} />
+                                            </button>
+                                        </div>
+                                    </div>
+                                </div>
+                            ))}
                         </div>
-                    )}
-                </div>
+                    </div>
+                )}
 
-                {/* Payment Status Toggle */}
                 <div className="mb-4 p-4 bg-gray-50 rounded-lg">
-                    <label className="flex items-center cursor-pointer">
+                    <label className="flex items-center gap-2 cursor-pointer">
                         <input
                             type="checkbox"
                             checked={isPaid}
                             onChange={(e) => setIsPaid(e.target.checked)}
-                            className="w-5 h-5 text-green-600 rounded focus:ring-2 focus:ring-green-500"
+                            className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
                         />
-                        <span className="ml-3 text-sm font-medium text-gray-700">
-                            Mark as Paid
-                            {isPaid && <span className="ml-2 text-green-600">✓</span>}
-                        </span>
+                        <span className="text-sm font-medium text-gray-700">Mark as Paid</span>
                     </label>
-                    <p className="text-xs text-gray-500 mt-2 ml-8">
-                        {isPaid ? 'Bill will be marked as paid immediately' : 'Bill will be saved as unpaid'}
-                    </p>
                 </div>
 
-                {/* Submit Button */}
-                <div className="flex gap-2">
-                    <button
-                        onClick={onClose}
-                        className="flex-1 px-4 py-3 bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 font-semibold"
-                        disabled={loading}
-                    >
-                        Cancel
-                    </button>
+                <div className="flex items-center justify-between pt-4 border-t border-gray-200">
+                    <div>
+                        <p className="text-sm text-gray-600">Total Amount</p>
+                        <p className="text-2xl font-bold text-gray-900">₹{getTotalAmount()}</p>
+                    </div>
                     <button
                         onClick={handleSubmit}
-                        className="flex-1 px-4 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-semibold disabled:opacity-50"
                         disabled={loading || billItems.length === 0}
+                        className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition font-semibold disabled:bg-gray-400 disabled:cursor-not-allowed"
                     >
-                        {loading ? 'Creating...' : `Create Bill (${isPaid ? 'Paid' : 'Unpaid'})`}
+                        {loading ? 'Creating...' : 'Create Bill'}
                     </button>
                 </div>
             </div>
