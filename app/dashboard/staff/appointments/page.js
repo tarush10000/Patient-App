@@ -152,6 +152,14 @@ export default function StaffAppointmentsPage() {
             grouped[dateKey][slot].push(apt);
         });
 
+        Object.keys(grouped).forEach(dateKey => {
+            Object.keys(grouped[dateKey]).forEach(slot => {
+                grouped[dateKey][slot].sort((a, b) => 
+                    new Date(a.createdAt) - new Date(b.createdAt)
+                );
+            });
+        });
+
         setGroupedAppointments(grouped);
     };
 
