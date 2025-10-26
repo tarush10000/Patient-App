@@ -99,6 +99,30 @@ export default function StaffSettingsPage() {
         );
     }
 
+    const handleUnblockSlot = async (slotId) => {
+        if (!confirm('Are you sure you want to unblock this slot?')) return;
+        
+        try {
+            await api.unblockSlot(slotId);
+            fetchBlockedData(); // Refresh the list
+            alert('Slot unblocked successfully');
+        } catch (error) {
+            alert('Failed to unblock slot: ' + error.message);
+        }
+    };
+
+    const handleUnblockDay = async (dayId) => {
+        if (!confirm('Are you sure you want to unblock this day?')) return;
+        
+        try {
+            await api.unblockDay(dayId);
+            fetchBlockedData(); // Refresh the list
+            alert('Day unblocked successfully');
+        } catch (error) {
+            alert('Failed to unblock day: ' + error.message);
+        }
+    };
+
     return (
         <div className="min-h-screen bg-gray-50">
             <Header />
@@ -151,14 +175,22 @@ export default function StaffSettingsPage() {
                                     {blockedDays.map((day) => (
                                         <div
                                             key={day._id}
-                                            className="p-4 bg-orange-50 border border-orange-200 rounded-lg"
+                                            className="p-4 bg-orange-50 border border-orange-200 rounded-lg flex justify-between items-center"
                                         >
-                                            <p className="font-semibold text-gray-800">
-                                                {formatDate(day.date)}
-                                            </p>
-                                            <p className="text-sm text-gray-700 mt-1">
-                                                Reason: {day.reason}
-                                            </p>
+                                            <div>
+                                                <p className="font-semibold text-gray-800">
+                                                    {formatDate(day.date)}
+                                                </p>
+                                                <p className="text-sm text-gray-700 mt-1">
+                                                    Reason: {day.reason}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleUnblockDay(day._id)}
+                                                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition text-sm"
+                                            >
+                                                Unblock
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
@@ -189,13 +221,21 @@ export default function StaffSettingsPage() {
                                     {blockedSlots.map((slot) => (
                                         <div
                                             key={slot._id}
-                                            className="p-4 bg-red-50 border border-red-200 rounded-lg"
+                                            className="p-4 bg-red-50 border border-red-200 rounded-lg flex justify-between items-center"
                                         >
-                                            <p className="font-semibold text-gray-800">{formatDate(slot.date)}</p>
-                                            <p className="text-sm text-gray-700">{slot.timeSlot}</p>
-                                            <p className="text-sm text-gray-600 mt-1 italic">
-                                                Reason: {slot.reason}
-                                            </p>
+                                            <div>
+                                                <p className="font-semibold text-gray-800">{formatDate(slot.date)}</p>
+                                                <p className="text-sm text-gray-700">{slot.timeSlot}</p>
+                                                <p className="text-sm text-gray-600 mt-1 italic">
+                                                    Reason: {slot.reason}
+                                                </p>
+                                            </div>
+                                            <button
+                                                onClick={() => handleUnblockSlot(slot._id)}
+                                                className="bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition text-sm"
+                                            >
+                                                Unblock
+                                            </button>
                                         </div>
                                     ))}
                                 </div>
