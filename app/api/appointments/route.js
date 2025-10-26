@@ -81,15 +81,39 @@ export async function POST(request) {
         appointmentDateTime.setHours(hours, slotMinutes, 0, 0);
 
         // Check if appointment is within 2 hours from now
-        const now = new Date();
-        const diffMs = appointmentDateTime - now;
-        const diffHours = diffMs / (1000 * 60 * 60);
+        if (user.role === 'patient') {
+            const now = new Date();
+            const diffMs = appointmentDateTime - now;
+            const diffHours = diffMs / (1000 * 60 * 60);
 
-        if (diffHours < 2) {
-            return NextResponse.json(
-                { error: 'Appointments must be booked at least 2 hours in advance. Please choose a later time slot.' },
-                { status: 400 }
-            );
+            if (diffHours < 2) {
+                return NextResponse.json(
+                    { error: 'Appointments must be booked at least 2 hours in advance. Please choose a later time slot.' },
+                    { status: 400 }
+                );
+            }
+
+            // Check for duplicate bookings on the same day for this phone number
+            const appointmentDay = new Date(appointmentDate);
+            appointmentDay.setHours(0, 0, 0, 0);
+            const nextDay = new Date(appointmentDay);
+            nextDay.setDate(nextDay.getDate() + 1);
+
+            const existingAppointment = await Appointment.findOne({
+                phone: phone,
+                appointmentDate: {
+                    $gte: appointmentDay,
+                    $lt: nextDay
+                },
+                status: { $ne: 'cancelled' }
+            });
+
+            if (existingAppointment) {
+                return NextResponse.json(
+                    { error: 'You already have an appointment scheduled for this day. Please choose a different date or cancel your existing appointment.' },
+                    { status: 409 }
+                );
+            }
         }
 
         // Define slot capacities

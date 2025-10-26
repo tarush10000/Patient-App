@@ -42,6 +42,27 @@ export async function POST(request) {
             );
         }
 
+        const appointmentDay = new Date(appointmentDate);
+        appointmentDay.setHours(0, 0, 0, 0);
+        const nextDay = new Date(appointmentDay);
+        nextDay.setDate(nextDay.getDate() + 1);
+
+        const existingAppointment = await Appointment.findOne({
+            phone: phone,
+            appointmentDate: {
+                $gte: appointmentDay,
+                $lt: nextDay
+            },
+            status: { $ne: 'cancelled' }
+        });
+
+        if (existingAppointment) {
+            return NextResponse.json(
+                { error: 'You already have an appointment scheduled for this day. Please choose a different date or cancel your existing appointment.' },
+                { status: 409 }
+            );
+        }
+
         // Define slot capacities
         const slotCapacities = {
             '10:30 AM - 11:30 AM': 4,
