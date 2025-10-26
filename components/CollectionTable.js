@@ -1,9 +1,9 @@
 'use client';
 
 import { useState } from 'react';
-import { FileText, User, Calendar, ChevronDown, ChevronUp } from 'lucide-react';
+import { FileText, User, Calendar, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 
-export default function CollectionTable({ bills }) {
+export default function CollectionTable({ bills, onEditBill }) {
     const [sortField, setSortField] = useState('billDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -32,6 +32,25 @@ export default function CollectionTable({ bills }) {
         } else {
             setSortField(field);
             setSortOrder('desc');
+        }
+    };
+
+    const handleBillClick = (bill) => {
+        if (onEditBill) {
+            // Parse the items for the bill
+            const items = bill.getParsedItems ? bill.getParsedItems() : parseBillItems(bill.items);
+            
+            // Create the bill data object to pass to the modal
+            const billData = {
+                _id: bill._id,
+                patientId: bill.patientId,
+                billDate: bill.billDate,
+                items: items,
+                totalAmount: bill.totalAmount,
+                status: bill.status
+            };
+            
+            onEditBill(billData);
         }
     };
 
@@ -83,7 +102,6 @@ export default function CollectionTable({ bills }) {
         const styles = {
             paid: 'bg-green-100 text-green-700 border-green-300',
             unpaid: 'bg-red-100 text-red-700 border-red-300',
-            partial: 'bg-yellow-100 text-yellow-700 border-yellow-300'
         };
 
         return (
@@ -157,7 +175,7 @@ export default function CollectionTable({ bills }) {
                                         Services
                                     </th>
                                     <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
-                                        Payment Modes
+                                        Payment Method
                                     </th>
                                     <th 
                                         className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
@@ -177,6 +195,9 @@ export default function CollectionTable({ bills }) {
                                             <SortIcon field="status" />
                                         </div>
                                     </th>
+                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                        Actions
+                                    </th>
                                 </tr>
                             </thead>
                             <tbody className="divide-y divide-gray-200">
@@ -185,7 +206,7 @@ export default function CollectionTable({ bills }) {
                                     const paymentMethods = [...new Set(items.map(item => item.paymentMethod))];
 
                                     return (
-                                        <tr key={bill._id} className="hover:bg-gray-50 transition-colors">
+                                        <tr key={bill._id} className="hover:bg-blue-50 transition-colors group">
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <Calendar size={16} className="text-gray-400" />
@@ -247,6 +268,16 @@ export default function CollectionTable({ bills }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 {getStatusBadge(bill.status)}
+                                            </td>
+                                            <td className="px-6 py-4 whitespace-nowrap">
+                                                <button
+                                                    onClick={() => handleBillClick(bill)}
+                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
+                                                    title="Edit Bill"
+                                                >
+                                                    <Edit2 size={14} />
+                                                    Edit
+                                                </button>
                                             </td>
                                         </tr>
                                     );
