@@ -25,6 +25,9 @@ export default function StaffAppointmentsPage() {
     const [showBillModal, setShowBillModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
 
+    const [showEditModal, setShowEditModal] = useState(false);
+    const [editingAppointment, setEditingAppointment] = useState(null);
+
     useEffect(() => {
         checkAuth();
         fetchAllAppointments();
@@ -51,6 +54,23 @@ export default function StaffAppointmentsPage() {
         } catch (error) {
             console.error('Error checking auth:', error);
             router.push('/login');
+        }
+    };
+
+    const handleEditAppointment = (appointment) => {
+        setEditingAppointment(appointment);
+        setShowEditModal(true);
+    };
+
+    const handleSaveEdit = async (updatedData) => {
+        try {
+            await api.updateAppointment(editingAppointment._id, updatedData);
+            setShowEditModal(false);
+            setEditingAppointment(null);
+            fetchAllAppointments();
+            alert('✅ Appointment updated successfully!');
+        } catch (error) {
+            alert('Failed to update appointment: ' + error.message);
         }
     };
 
@@ -507,6 +527,13 @@ export default function StaffAppointmentsPage() {
                                                                         <DollarSign size={16} />
                                                                         Add Bill
                                                                     </button>
+                                                                    <button
+                                                                        onClick={() => handleEditAppointment(apt)}
+                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition text-sm font-medium border border-purple-200"
+                                                                    >
+                                                                        <Edit size={16} />
+                                                                        Edit
+                                                                    </button>
                                                                 </>
                                                             )}
 
@@ -537,6 +564,18 @@ export default function StaffAppointmentsPage() {
                     </div>
                 )}
             </main>
+
+            {/* Edit Appointment Modal */}
+            {showEditModal && editingAppointment && (
+                <EditAppointmentModal
+                    appointment={editingAppointment}
+                    onClose={() => {
+                        setShowEditModal(false);
+                        setEditingAppointment(null);
+                    }}
+                    onSave={handleSaveEdit}
+                />
+            )}
 
             {/* Bill Modal */}
             {showBillModal && (
@@ -816,6 +855,189 @@ function BillModal({ appointment, onClose, onSuccess }) {
                         {loading ? 'Creating...' : 'Create Bill'}
                     </button>
                 </div>
+            </div>
+        </div>
+    );
+}
+
+// Edit Appointment Modal Component
+function EditAppointmentModal({ appointment, onClose, onSave }) {
+    const [formData, setFormData] = useState({
+        fullName: appointment.fullName,
+        phone: appointment.phone,
+        appointmentDate: new Date(appointment.appointmentDate).toISOString().split('T')[0],
+        timeSlot: appointment.timeSlot,
+        consultationType: appointment.consultationType,
+        additionalMessage: appointment.additionalMessage || ''
+    });
+    const [availableSlots, setAvailableSlots] = useState([]);
+    const [loading, setLoading] = useState(false);
+
+    useEffect(() => {
+        if (formData.appointmentDate) {
+            fetchAvailableSlots(formData.appointmentDate);
+        }
+    }, [formData.appointmentDate]);
+
+    const fetchAvailableSlots = async (date) => {
+        try {
+            const response = await api.getAvailableSlots(date);
+            setAvailableSlots(response.slots || []);
+        } catch (error) {
+            console.error('Error fetching slots:', error);
+        }
+    };
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        setLoading(true);
+        try {
+            await onSave(formData);
+        } catch (error) {
+            alert('Error: ' + error.message);
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const consultationTypes = [
+        { value: 'general-consultation', label: 'General Consultation' },
+        { value: 'follow-up', label: 'Follow-up' },
+        { value: 'gynecology', label: 'Gynecology' },
+        { value: 'pregnancy-care', label: 'Pregnancy Care' },
+        { value: 'menstrual-issues', label: 'Menstrual Issues' },
+        { value: 'fertility', label: 'Fertility Consultation' },
+        { value: 'menopause', label: 'Menopause Care' },
+        { value: 'other', label: 'Other' }
+    ];
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-center mb-4">
+                    <h3 className="text-xl font-bold text-gray-800">Edit Appointment</h3>
+                    <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
+                        <X size={24} />
+                    </button>
+                </div>
+
+                <form onSubmit={handleSubmit} className="space-y-4">
+                    {/* Full Name */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Full Name *
+                        </label>
+                        <input
+                            type="text"
+                            value={formData.fullName}
+                            onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    {/* Phone */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Phone Number *
+                        </label>
+                        <div className="flex gap-2">
+                            <span className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg">+91</span>
+                            <input
+                                type="tel"
+                                value={formData.phone}
+                                onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
+                                pattern="[6-9][0-9]{9}"
+                                maxLength="10"
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                required
+                            />
+                        </div>
+                    </div>
+
+                    {/* Date */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Appointment Date *
+                        </label>
+                        <input
+                            type="date"
+                            value={formData.appointmentDate}
+                            onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value, timeSlot: '' })}
+                            min={new Date().toISOString().split('T')[0]}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required
+                        />
+                    </div>
+
+                    {/* Time Slot */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Time Slot *
+                        </label>
+                        <select
+                            value={formData.timeSlot}
+                            onChange={(e) => setFormData({ ...formData, timeSlot: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="">Select time slot</option>
+                            {availableSlots.map(slot => (
+                                <option key={slot.time} value={slot.time} disabled={slot.status === 'full' || slot.status === 'blocked'}>
+                                    {slot.time} - {slot.status === 'full' ? 'Full' : slot.status === 'blocked' ? 'Blocked' : `${slot.available} available`}
+                                </option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Consultation Type */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Consultation Type *
+                        </label>
+                        <select
+                            value={formData.consultationType}
+                            onChange={(e) => setFormData({ ...formData, consultationType: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            required
+                        >
+                            <option value="">Select consultation type</option>
+                            {consultationTypes.map(type => (
+                                <option key={type.value} value={type.value}>{type.label}</option>
+                            ))}
+                        </select>
+                    </div>
+
+                    {/* Additional Message */}
+                    <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Additional Message
+                        </label>
+                        <textarea
+                            value={formData.additionalMessage}
+                            onChange={(e) => setFormData({ ...formData, additionalMessage: e.target.value })}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            rows="3"
+                        />
+                    </div>
+
+                    <div className="flex gap-3 pt-4">
+                        <button
+                            type="button"
+                            onClick={onClose}
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                        >
+                            Cancel
+                        </button>
+                        <button
+                            type="submit"
+                            disabled={loading}
+                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                        >
+                            {loading ? 'Saving...' : 'Save Changes'}
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
     );

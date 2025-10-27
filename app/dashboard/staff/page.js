@@ -215,14 +215,14 @@ export default function StaffDashboardPage() {
                             className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
                         >
                             <AlertTriangle size={20} />
-                            Emergency
+                            <span className="hidden sm:inline">Emergency</span>
                         </button>
                         <button
                             onClick={() => setShowBookingModal(true)}
                             className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2"
                         >
                             <Plus size={20} />
-                            Add Appointment
+                            <span className="hidden sm:inline">Add Appointment</span>
                         </button>
                     </div>
                 </div>
