@@ -278,7 +278,7 @@ export default function StaffDashboardPage() {
                                                             <p className="text-sm text-gray-600">{apt.phone}</p>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="ml-11 space-y-1">
                                                         <p className="text-sm text-gray-600">
                                                             <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -292,14 +292,13 @@ export default function StaffDashboardPage() {
                                                             </p>
                                                         )}
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                                apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
                                                                 apt.status === 'seen' ? 'bg-green-100 text-green-700' :
-                                                                'bg-red-100 text-red-700'
-                                                            }`}>
+                                                                    'bg-red-100 text-red-700'
+                                                                }`}>
                                                                 {apt.status === 'upcoming' ? '⏳ Upcoming' :
-                                                                 apt.status === 'seen' ? '✅ Seen' :
-                                                                 '❌ Cancelled'}
+                                                                    apt.status === 'seen' ? '✅ Seen' :
+                                                                        '❌ Cancelled'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -411,7 +410,7 @@ export default function StaffDashboardPage() {
                                                             <p className="text-sm text-gray-600">{apt.phone}</p>
                                                         </div>
                                                     </div>
-                                                    
+
                                                     <div className="ml-11 space-y-1">
                                                         <p className="text-sm text-gray-600">
                                                             <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
@@ -425,14 +424,13 @@ export default function StaffDashboardPage() {
                                                             </p>
                                                         )}
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
-                                                                apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
                                                                 apt.status === 'seen' ? 'bg-green-100 text-green-700' :
-                                                                'bg-red-100 text-red-700'
-                                                            }`}>
+                                                                    'bg-red-100 text-red-700'
+                                                                }`}>
                                                                 {apt.status === 'upcoming' ? '⏳ Upcoming' :
-                                                                 apt.status === 'seen' ? '✅ Seen' :
-                                                                 '❌ Cancelled'}
+                                                                    apt.status === 'seen' ? '✅ Seen' :
+                                                                        '❌ Cancelled'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -624,27 +622,32 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
         setLoading(true);
         try {
-            const billString = billItems
-                .map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`)
-                .join(', ');
+            const billString = billItems.map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`).join(', ');
 
-            const patientId = appointment.patientId?._id
-                || appointment.patientId
-                || appointment.userId?._id
-                || appointment.userId;
+            // For guest appointments, create a temporary patient record with just phone and name
+            let patientId = appointment.patientId?._id || appointment.patientId || appointment.userId?._id || appointment.userId;
 
-            if (!patientId) {
-                throw new Error('Patient ID not found in appointment data');
-            }
-
-            await api.createBill({
-                patientId: patientId,
+            // If no patientId exists (guest appointment), create guest patient data
+            const billData = {
                 appointmentId: appointment._id,
                 items: billString,
                 totalAmount: getTotalAmount(),
                 status: isPaid ? 'paid' : 'unpaid',
                 paidDate: isPaid ? new Date() : undefined
-            });
+            };
+
+            // Only add patientId if it exists
+            if (patientId) {
+                billData.patientId = patientId;
+            } else {
+                // For guest appointments, store patient info in the bill
+                billData.guestPatient = {
+                    fullName: appointment.fullName,
+                    phone: appointment.phone
+                };
+            }
+
+            await api.createBill(billData);
 
             alert('✅ Bill created successfully!');
             onSuccess();

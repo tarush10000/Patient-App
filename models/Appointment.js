@@ -24,6 +24,10 @@ const AppointmentSchema = new mongoose.Schema({
         type: String,
         required: true
     },
+    delayMinutes: {
+        type: Number,
+        default: 0
+    },
     consultationType: {
         type: String,
         required: true,

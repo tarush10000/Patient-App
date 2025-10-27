@@ -60,7 +60,7 @@ export default function StaffAppointmentsPage() {
             const sorted = (response.appointments || []).sort((a, b) => {
                 const dateCompare = new Date(b.appointmentDate) - new Date(a.appointmentDate);
                 if (dateCompare !== 0) return dateCompare;
-                
+
                 // If same date, sort by time slot
                 const timeA = a.timeSlot.split(' - ')[0];
                 const timeB = b.timeSlot.split(' - ')[0];
@@ -130,7 +130,7 @@ export default function StaffAppointmentsPage() {
         filtered.sort((a, b) => {
             const dateCompare = new Date(a.appointmentDate) - new Date(b.appointmentDate);
             if (dateCompare !== 0) return dateCompare;
-            
+
             const timeA = a.timeSlot.split(' - ')[0];
             const timeB = b.timeSlot.split(' - ')[0];
             return timeA.localeCompare(timeB);
@@ -154,7 +154,7 @@ export default function StaffAppointmentsPage() {
 
         Object.keys(grouped).forEach(dateKey => {
             Object.keys(grouped[dateKey]).forEach(slot => {
-                grouped[dateKey][slot].sort((a, b) => 
+                grouped[dateKey][slot].sort((a, b) =>
                     new Date(a.createdAt) - new Date(b.createdAt)
                 );
             });
@@ -233,7 +233,7 @@ export default function StaffAppointmentsPage() {
     const calculateActualAppointmentTime = (slot, appointmentIndex) => {
         const [startTime, period] = slot.split(' - ')[0].split(' ');
         const [hours, minutes] = startTime.split(':').map(Number);
-        
+
         let totalMinutes = hours * 60 + minutes + (appointmentIndex * 15);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
@@ -242,7 +242,7 @@ export default function StaffAppointmentsPage() {
         const actualMinutes = totalMinutes % 60;
         const actualPeriod = actualHours >= 12 ? 'PM' : 'AM';
         const displayHours = actualHours > 12 ? actualHours - 12 : (actualHours === 0 ? 12 : actualHours);
-        
+
         return `${displayHours}:${actualMinutes.toString().padStart(2, '0')} ${actualPeriod}`;
     };
 
@@ -629,20 +629,27 @@ function BillModal({ appointment, onClose, onSuccess }) {
         setLoading(true);
         try {
             const billString = billItems.map(item => `${item.service}, ${item.amount}, ${item.paymentMethod}`).join(', ');
-            const patientId = appointment.patientId?._id || appointment.patientId || appointment.userId?._id || appointment.userId;
 
-            if (!patientId) {
-                throw new Error('Patient ID not found in appointment data');
-            }
+            let patientId = appointment.patientId?._id || appointment.patientId || appointment.userId?._id || appointment.userId;
 
-            await api.createBill({
-                patientId: patientId,
+            const billData = {
                 appointmentId: appointment._id,
                 items: billString,
                 totalAmount: getTotalAmount(),
                 status: isPaid ? 'paid' : 'unpaid',
                 paidDate: isPaid ? new Date() : undefined
-            });
+            };
+
+            if (patientId) {
+                billData.patientId = patientId;
+            } else {
+                billData.guestPatient = {
+                    fullName: appointment.fullName,
+                    phone: appointment.phone
+                };
+            }
+
+            await api.createBill(billData);
 
             alert('✅ Bill created successfully!');
             onSuccess();

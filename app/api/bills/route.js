@@ -58,21 +58,35 @@ export async function POST(request) {
 
         const { patientId, appointmentId, items, totalAmount, status, paidDate } = await request.json();
 
-        if (!patientId || !items || !totalAmount) {
+        if (!items || !totalAmount) {
             return NextResponse.json(
                 { error: 'Missing required fields' },
                 { status: 400 }
             );
         }
 
+        // Allow either patientId OR guestPatient
+        if (!patientId && !guestPatient) {
+            return NextResponse.json(
+                { error: 'Either patientId or guest patient info is required' },
+                { status: 400 }
+            );
+        }
+
         const billData = {
-            patientId,
             appointmentId: appointmentId || undefined,
             items,
             totalAmount,
             status: status || 'unpaid',
             createdBy: user._id
         };
+
+        // Add patientId OR guestPatient
+        if (patientId) {
+            billData.patientId = patientId;
+        } else if (guestPatient) {
+            billData.guestPatient = guestPatient;
+        }
 
         // Add paidDate if status is paid
         if (status === 'paid' && paidDate) {

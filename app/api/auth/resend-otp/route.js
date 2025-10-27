@@ -16,7 +16,7 @@ export async function POST(request) {
             );
         }
 
-        const cleanPhone = phone.replace(/^\+91/, '').replace(/\s/g, '');
+        const cleanPhone = phone;
 
         // Check rate limiting - allow resend after 30 seconds
         const recentOTP = await OTP.findOne({

@@ -19,9 +19,9 @@ export async function POST(request) {
         // .replace(/^\+?91/, '');
 
         // Validate phone number (10 digits)
-        if (!/^\d{10}$/.test(formattedPhone)) {
+        if (!/^[6-9]\d{9}$/.test(formattedPhone)) {
             return NextResponse.json(
-                { error: 'Invalid phone number format' },
+                { error: 'Invalid phone number format. Must be a valid 10-digit Indian mobile number' },
                 { status: 400 }
             );
         }

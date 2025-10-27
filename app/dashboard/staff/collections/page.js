@@ -18,8 +18,8 @@ export default function CollectionsPage() {
     const [filteredBills, setFilteredBills] = useState([]);
     const [loading, setLoading] = useState(true);
     const [isModalOpen, setIsModalOpen] = useState(false);
-    const [editingBill, setEditingBill] = useState(null);   
-    
+    const [editingBill, setEditingBill] = useState(null);
+
     // Filters
     const [dateFilter, setDateFilter] = useState('today'); // today, week, month, custom
     const [paymentModeFilter, setPaymentModeFilter] = useState('all'); // all, cash, UPI, card, online
@@ -76,10 +76,10 @@ export default function CollectionsPage() {
                 const response = await api.createBill(billData);
                 console.log(response.message);
             }
-            
+
             // Refresh bills list
             await fetchBills();
-            
+
             // Close modal
             handleCloseModal();
         } catch (err) {
@@ -104,7 +104,7 @@ export default function CollectionsPage() {
 
         try {
             const payload = JSON.parse(atob(token.split('.')[1]));
-            if (payload.role !== 'admin' && payload.role !== 'reception') {
+            if (payload.role !== 'admin') {
                 router.push('/dashboard');
                 return;
             }
@@ -143,7 +143,7 @@ export default function CollectionsPage() {
         // Date filter
         const now = new Date();
         const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-        
+
         if (dateFilter === 'today') {
             filtered = filtered.filter(bill => {
                 const billDate = new Date(bill.billDate);
@@ -241,7 +241,7 @@ export default function CollectionsPage() {
 
             if (bill.status === 'paid') {
                 paidAmount += bill.totalAmount;
-                
+
                 // Calculate by payment mode
                 items.forEach(item => {
                     const method = item.paymentMethod.toLowerCase();

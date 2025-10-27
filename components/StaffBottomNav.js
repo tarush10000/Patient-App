@@ -25,7 +25,7 @@ export default function StaffBottomNav({ activeScreen = 'home', userRole }) {
             icon: DollarSign,
             label: 'Collections',
             path: '/dashboard/staff/collections',
-            adminOnly: false // Available to both admin and reception
+            adminOnly: true // Available to both admin and reception
         },
         {
             id: 'settings',
