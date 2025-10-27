@@ -31,7 +31,7 @@ export async function POST(request) {
         await connectDB();
 
         // Format phone number consistently
-        const formattedPhone = phone.replace(/[^0-9]/g, '').replace(/^91/, '');
+        const formattedPhone = phone;
         console.log('Formatted phone:', formattedPhone);
 
         // Find the OTP in database
