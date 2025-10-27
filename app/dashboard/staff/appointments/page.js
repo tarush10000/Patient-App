@@ -54,21 +54,23 @@ export default function StaffAppointmentsPage() {
         }
     };
 
+    const getSlotMinutes = (timeSlot) => {
+        const [time, period] = timeSlot.split(' - ')[0].split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
+
+        let totalMinutes = hours * 60 + minutes;
+        if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+        if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+        return totalMinutes;
+    };
+
     const fetchAllAppointments = async () => {
         try {
             const response = await api.getAppointments();
 
             // Helper function to convert time slot to minutes for sorting
-            const getSlotMinutes = (timeSlot) => {
-                const [time, period] = timeSlot.split(' - ')[0].split(' ');
-                const [hours, minutes] = time.split(':').map(Number);
 
-                let totalMinutes = hours * 60 + minutes;
-                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
-                if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
-
-                return totalMinutes;
-            };
 
             const sorted = (response.appointments || []).sort((a, b) => {
                 const dateCompare = new Date(b.appointmentDate) - new Date(a.appointmentDate);
