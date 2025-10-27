@@ -35,7 +35,7 @@ export async function PATCH(request, { params }) {
         appointment.updatedAt = new Date();
         await appointment.save();
 
-        // Send appropriate messages based on status changes
+        // Send appropriate messages based on status changes and appointment type
         try {
             const appointmentDateObj = new Date(appointment.appointmentDate);
             const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
@@ -45,20 +45,29 @@ export async function PATCH(request, { params }) {
                 day: 'numeric'
             });
 
-            // If status changed to 'cancelled', send cancellation message
-            if (updates.status === 'cancelled' && oldStatus !== 'cancelled') {
-                await whatsBoostService.sendAppointmentCancellation(appointment.phone, {
-                    patientName: appointment.fullName,
-                    date: formattedDate,
-                    timeSlot: appointment.timeSlot
-                });
-            }
+            // For EMERGENCY appointments - only send thank you message when marked as seen
+            if (appointment.isEmergency) {
+                if (updates.status === 'seen' && oldStatus !== 'seen') {
+                    await whatsBoostService.sendThankYouMessage(appointment.phone, {
+                        patientName: appointment.fullName
+                    });
+                }
+                // No other messages for emergency appointments
+            } else {
+                // For REGULAR appointments - send cancellation and thank you messages
+                if (updates.status === 'cancelled' && oldStatus !== 'cancelled') {
+                    await whatsBoostService.sendAppointmentCancellation(appointment.phone, {
+                        patientName: appointment.fullName,
+                        date: formattedDate,
+                        timeSlot: appointment.timeSlot
+                    });
+                }
 
-            // If status changed to 'seen', send thank you message
-            if (updates.status === 'seen' && oldStatus !== 'seen') {
-                await whatsBoostService.sendThankYouMessage(appointment.phone, {
-                    patientName: appointment.fullName
-                });
+                if (updates.status === 'seen' && oldStatus !== 'seen') {
+                    await whatsBoostService.sendThankYouMessage(appointment.phone, {
+                        patientName: appointment.fullName
+                    });
+                }
             }
         } catch (messageError) {
             console.error('Failed to send appointment message:', messageError);

@@ -2,10 +2,11 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Users, Clock, Trash2, CheckCircle, X, XCircle, DollarSign, ClockIcon, Edit, Plus } from 'lucide-react';
+import { Calendar, Users, Clock, Trash2, CheckCircle, X, XCircle, DollarSign, ClockIcon, Edit, Plus, AlertTriangle } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import BookAppointmentForm from '@/components/BookAppointmentForm';
+import EmergencyAppointmentModal from '@/components/EmergencyAppointmentModal';
 import { api } from '@/lib/api';
 
 export default function StaffDashboardPage() {
@@ -13,6 +14,7 @@ export default function StaffDashboardPage() {
     const [currentUser, setCurrentUser] = useState(null);
     const [todayAppointments, setTodayAppointments] = useState([]);
     const [groupedAppointments, setGroupedAppointments] = useState({});
+    const [emergencyAppointments, setEmergencyAppointments] = useState([]);
     const [stats, setStats] = useState({
         todayTotal: 0,
         todayCompleted: 0,
@@ -23,6 +25,7 @@ export default function StaffDashboardPage() {
     const [showBillModal, setShowBillModal] = useState(false);
     const [selectedAppointment, setSelectedAppointment] = useState(null);
     const [showBookingModal, setShowBookingModal] = useState(false);
+    const [showEmergencyModal, setShowEmergencyModal] = useState(false);
 
     useEffect(() => {
         checkAuth();
@@ -67,16 +70,21 @@ export default function StaffDashboardPage() {
                 return aptDate >= today && aptDate < tomorrow;
             }) || [];
 
-            // Sort appointments by time slot
-            const sorted = todayApts.sort((a, b) => {
+            // Separate regular and emergency appointments
+            const regularApts = todayApts.filter(apt => !apt.isEmergency);
+            const emergencyApts = todayApts.filter(apt => apt.isEmergency);
+
+            // Sort regular appointments by time slot
+            const sorted = regularApts.sort((a, b) => {
                 const timeA = a.timeSlot.split(' - ')[0];
                 const timeB = b.timeSlot.split(' - ')[0];
                 return timeA.localeCompare(timeB);
             });
 
             setTodayAppointments(sorted);
+            setEmergencyAppointments(emergencyApts);
 
-            // Group appointments by time slot
+            // Group regular appointments by time slot (excluding emergency)
             const grouped = sorted.reduce((acc, apt) => {
                 const slot = apt.timeSlot;
                 if (!acc[slot]) {
@@ -121,9 +129,7 @@ export default function StaffDashboardPage() {
             return;
         }
 
-        if (!confirm('Are you sure you want to delete this appointment?')) {
-            return;
-        }
+        if (!confirm('Are you sure you want to delete this appointment?')) return;
 
         try {
             await api.deleteAppointment(appointmentId);
@@ -134,14 +140,12 @@ export default function StaffDashboardPage() {
     };
 
     const handleDelayAppointment = async (appointmentId, minutes) => {
-        if (!confirm(`Delay this appointment by ${minutes} minutes? The patient will be notified via WhatsApp.`)) {
-            return;
-        }
+        if (!confirm(`Delay by ${minutes} minutes? Patient will be notified via WhatsApp.`)) return;
 
         try {
             await api.delayAppointment(appointmentId, minutes);
             fetchDashboardData();
-            alert(`✅ Appointment delayed by ${minutes} minutes. Patient has been notified.`);
+            alert(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
         } catch (error) {
             alert('Failed to delay appointment: ' + error.message);
         }
@@ -152,41 +156,20 @@ export default function StaffDashboardPage() {
         setShowBillModal(true);
     };
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-IN', {
-            day: 'numeric',
-            month: 'short',
-            year: 'numeric'
-        });
-    };
+    const calculateApproxTime = (slotTime, index) => {
+        const [time, period] = slotTime.split(' - ')[0].split(' ');
+        const [hours, minutes] = time.split(':').map(Number);
 
-    const getStatusColor = (status) => {
-        switch (status) {
-            case 'upcoming':
-                return 'bg-blue-100 text-blue-700';
-            case 'seen':
-                return 'bg-green-100 text-green-700';
-            case 'cancelled':
-                return 'bg-red-100 text-red-700';
-            default:
-                return 'bg-gray-100 text-gray-700';
-        }
-    };
-
-    const calculateActualAppointmentTime = (slot, appointmentIndex) => {
-        const [startTime, period] = slot.split(' - ')[0].split(' ');
-        const [hours, minutes] = startTime.split(':').map(Number);
-        
-        let totalMinutes = hours * 60 + minutes + (appointmentIndex * 15);
+        let totalMinutes = hours * 60 + minutes + (index * 15);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
 
-        const actualHours = Math.floor(totalMinutes / 60) % 24;
-        const actualMinutes = totalMinutes % 60;
-        const actualPeriod = actualHours >= 12 ? 'PM' : 'AM';
-        const displayHours = actualHours > 12 ? actualHours - 12 : (actualHours === 0 ? 12 : actualHours);
-        
-        return `${displayHours}:${actualMinutes.toString().padStart(2, '0')} ${actualPeriod}`;
+        const newHours = Math.floor(totalMinutes / 60) % 24;
+        const newMinutes = totalMinutes % 60;
+        const newPeriod = newHours >= 12 ? 'PM' : 'AM';
+        const displayHours = newHours > 12 ? newHours - 12 : (newHours === 0 ? 12 : newHours);
+
+        return `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
     };
 
     if (loading) {
@@ -202,20 +185,29 @@ export default function StaffDashboardPage() {
             <Header />
 
             <main className="max-w-6xl mx-auto p-4 pb-24">
-                <div className="mb-6 flex justify-between items-center">
+                <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h2 className="text-2xl font-bold text-gray-800">
+                        <h2 className="text-3xl font-bold text-gray-800">
                             {currentUser?.role === 'admin' ? 'Admin' : 'Reception'} Dashboard
                         </h2>
                         <p className="text-gray-600 mt-1">Today's Schedule</p>
                     </div>
-                    <button
-                        onClick={() => setShowBookingModal(true)}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2"
-                    >
-                        <Plus size={20} />
-                        Add Appointment
-                    </button>
+                    <div className="flex gap-2">
+                        <button
+                            onClick={() => setShowEmergencyModal(true)}
+                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
+                        >
+                            <AlertTriangle size={20} />
+                            Emergency
+                        </button>
+                        <button
+                            onClick={() => setShowBookingModal(true)}
+                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                        >
+                            <Plus size={20} />
+                            Add Appointment
+                        </button>
+                    </div>
                 </div>
 
                 {/* Statistics Cards */}
@@ -248,13 +240,14 @@ export default function StaffDashboardPage() {
                 {/* Today's Appointments - Grouped by Time Slot */}
                 <h3 className="text-xl font-bold text-gray-800 mb-4">Today's Appointments by Time Slot</h3>
 
-                {todayAppointments.length === 0 ? (
+                {todayAppointments.length === 0 && emergencyAppointments.length === 0 ? (
                     <div className="bg-white rounded-xl shadow-md p-12 text-center">
                         <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
                         <p className="text-gray-500 text-lg">No appointments scheduled for today</p>
                     </div>
                 ) : (
                     <div className="space-y-6">
+                        {/* Regular Appointments by Time Slot */}
                         {Object.entries(groupedAppointments).map(([timeSlot, appointments]) => (
                             <div key={timeSlot} className="bg-white rounded-xl shadow-md overflow-hidden">
                                 {/* Time Slot Header */}
@@ -265,7 +258,7 @@ export default function StaffDashboardPage() {
                                             <h4 className="font-bold text-lg">{timeSlot}</h4>
                                         </div>
                                         <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold">
-                                            {appointments.length} {appointments.length === 1 ? 'Patient' : 'Patients'}
+                                            {appointments.length} {appointments.length === 1 ? 'patient' : 'patients'}
                                         </span>
                                     </div>
                                 </div>
@@ -274,90 +267,85 @@ export default function StaffDashboardPage() {
                                 <div className="divide-y divide-gray-200">
                                     {appointments.map((apt, index) => (
                                         <div key={apt._id} className="p-5 hover:bg-gray-50 transition">
-                                            <div className="flex flex-col lg:flex-row justify-between gap-4">
-                                                {/* Appointment Info */}
+                                            <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
-                                                    <div className="flex items-start justify-between mb-3">
-                                                        <div>
-                                                            <div className="flex items-center gap-2 mb-1">
-                                                                <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">
-                                                                    #{index + 1}
-                                                                </span>
-                                                                <span className="text-sm font-semibold text-gray-600">
-                                                                    ~{calculateActualAppointmentTime(timeSlot, index)}
-                                                                </span>
-                                                            </div>
-                                                            <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
-                                                            <p className="text-sm text-gray-600">📞 {apt.phone}</p>
-                                                        </div>
-                                                        <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(apt.status)}`}>
-                                                            {apt.status}
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className="flex items-center justify-center w-8 h-8 bg-blue-100 text-blue-700 rounded-full font-bold text-sm">
+                                                            {index + 1}
                                                         </span>
-                                                    </div>
-
-                                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                                        <div className="flex items-center gap-2 text-gray-700">
-                                                            <Calendar size={16} className="text-green-600" />
-                                                            <span>{apt.consultationType?.replace(/-/g, ' ').toUpperCase()}</span>
+                                                        <div>
+                                                            <h5 className="font-bold text-gray-800 text-lg">{apt.fullName}</h5>
+                                                            <p className="text-sm text-gray-600">{apt.phone}</p>
                                                         </div>
+                                                    </div>
+                                                    
+                                                    <div className="ml-11 space-y-1">
+                                                        <p className="text-sm text-gray-600">
+                                                            <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                        </p>
+                                                        <p className="text-sm text-blue-600 font-medium">
+                                                            ⏰ Approx: {calculateApproxTime(timeSlot, index)}
+                                                        </p>
                                                         {apt.additionalMessage && (
-                                                            <div className="col-span-2 mt-2">
-                                                                <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                                                                    💬 {apt.additionalMessage}
-                                                                </p>
-                                                            </div>
+                                                            <p className="text-sm text-gray-600 mt-2">
+                                                                <span className="font-semibold">Note:</span> {apt.additionalMessage}
+                                                            </p>
                                                         )}
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
+                                                                apt.status === 'seen' ? 'bg-green-100 text-green-700' :
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {apt.status === 'upcoming' ? '⏳ Upcoming' :
+                                                                 apt.status === 'seen' ? '✅ Seen' :
+                                                                 '❌ Cancelled'}
+                                                            </span>
+                                                        </div>
                                                     </div>
                                                 </div>
 
                                                 {/* Action Buttons */}
-                                                <div className="flex flex-col gap-2 min-w-[200px]">
+                                                <div className="flex flex-col gap-2 min-w-fit">
                                                     {apt.status === 'upcoming' && (
                                                         <>
-                                                            {/* Primary Actions */}
+                                                            <button
+                                                                onClick={() => handleStatusUpdate(apt._id, 'seen')}
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                            >
+                                                                <CheckCircle size={16} />
+                                                                Mark Seen
+                                                            </button>
                                                             <div className="flex gap-2">
                                                                 <button
-                                                                    onClick={() => handleStatusUpdate(apt._id, 'seen')}
-                                                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
-                                                                >
-                                                                    <CheckCircle size={16} />
-                                                                    Seen
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
-                                                                    className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
-                                                                >
-                                                                    <XCircle size={16} />
-                                                                    Cancel
-                                                                </button>
-                                                            </div>
-
-                                                            {/* Delay Options */}
-                                                            <div className="flex gap-2 text-xs">
-                                                                <button
                                                                     onClick={() => handleDelayAppointment(apt._id, 15)}
-                                                                    className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                    className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                    title="Delay by 15 minutes"
                                                                 >
-                                                                    <ClockIcon size={14} className="inline mr-1" />
-                                                                    +15 min
+                                                                    <ClockIcon size={14} />
+                                                                    +15
                                                                 </button>
                                                                 <button
                                                                     onClick={() => handleDelayAppointment(apt._id, 30)}
-                                                                    className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                    className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                    title="Delay by 30 minutes"
                                                                 >
-                                                                    <ClockIcon size={14} className="inline mr-1" />
-                                                                    +30 min
-                                                                </button>
-                                                                <button
-                                                                    onClick={() => handleDelayAppointment(apt._id, 60)}
-                                                                    className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
-                                                                >
-                                                                    <ClockIcon size={14} className="inline mr-1" />
-                                                                    +1 hr
+                                                                    <ClockIcon size={14} />
+                                                                    +30
                                                                 </button>
                                                             </div>
+                                                            <button
+                                                                onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium border border-red-200"
+                                                            >
+                                                                <XCircle size={16} />
+                                                                Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
 
-                                                            {/* Add Bill Button */}
+                                                    {apt.status === 'seen' && (
+                                                        <>
                                                             <button
                                                                 onClick={() => handleAddBill(apt)}
                                                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
@@ -393,6 +381,110 @@ export default function StaffDashboardPage() {
                                 </div>
                             </div>
                         ))}
+
+                        {/* Emergency Appointments Section */}
+                        {emergencyAppointments.length > 0 && (
+                            <div className="bg-red-50 border-2 border-red-200 rounded-xl shadow-md overflow-hidden">
+                                <div className="bg-gradient-to-r from-red-600 to-red-700 text-white px-5 py-3">
+                                    <div className="flex justify-between items-center">
+                                        <div className="flex items-center gap-3">
+                                            <AlertTriangle size={20} />
+                                            <h4 className="font-bold text-lg">Emergency Appointments</h4>
+                                        </div>
+                                        <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold">
+                                            {emergencyAppointments.length} {emergencyAppointments.length === 1 ? 'patient' : 'patients'}
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <div className="divide-y divide-red-200 bg-white">
+                                    {emergencyAppointments.map((apt) => (
+                                        <div key={apt._id} className="p-5 hover:bg-red-50 transition">
+                                            <div className="flex justify-between items-start gap-4">
+                                                <div className="flex-1">
+                                                    <div className="flex items-center gap-3 mb-2">
+                                                        <span className="flex items-center justify-center w-8 h-8 bg-red-100 text-red-700 rounded-full font-bold text-sm">
+                                                            <AlertTriangle size={16} />
+                                                        </span>
+                                                        <div>
+                                                            <h5 className="font-bold text-gray-800 text-lg">{apt.fullName}</h5>
+                                                            <p className="text-sm text-gray-600">{apt.phone}</p>
+                                                        </div>
+                                                    </div>
+                                                    
+                                                    <div className="ml-11 space-y-1">
+                                                        <p className="text-sm text-gray-600">
+                                                            <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
+                                                        </p>
+                                                        <p className="text-sm text-red-600 font-medium">
+                                                            🚨 Emergency - {apt.timeSlot}
+                                                        </p>
+                                                        {apt.additionalMessage && (
+                                                            <p className="text-sm text-gray-600 mt-2">
+                                                                <span className="font-semibold">Note:</span> {apt.additionalMessage}
+                                                            </p>
+                                                        )}
+                                                        <div className="flex items-center gap-2 mt-2">
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                                                                apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
+                                                                apt.status === 'seen' ? 'bg-green-100 text-green-700' :
+                                                                'bg-red-100 text-red-700'
+                                                            }`}>
+                                                                {apt.status === 'upcoming' ? '⏳ Upcoming' :
+                                                                 apt.status === 'seen' ? '✅ Seen' :
+                                                                 '❌ Cancelled'}
+                                                            </span>
+                                                        </div>
+                                                    </div>
+                                                </div>
+
+                                                {/* Action Buttons */}
+                                                <div className="flex flex-col gap-2 min-w-fit">
+                                                    {apt.status === 'upcoming' && (
+                                                        <>
+                                                            <button
+                                                                onClick={() => handleStatusUpdate(apt._id, 'seen')}
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                            >
+                                                                <CheckCircle size={16} />
+                                                                Mark Seen
+                                                            </button>
+                                                            <button
+                                                                onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium border border-red-200"
+                                                            >
+                                                                <XCircle size={16} />
+                                                                Cancel
+                                                            </button>
+                                                        </>
+                                                    )}
+
+                                                    {apt.status === 'seen' && (
+                                                        <button
+                                                            onClick={() => handleAddBill(apt)}
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
+                                                        >
+                                                            <DollarSign size={16} />
+                                                            Add Bill
+                                                        </button>
+                                                    )}
+
+                                                    {currentUser?.role === 'admin' && (
+                                                        <button
+                                                            onClick={() => handleDeleteAppointment(apt._id)}
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                        >
+                                                            <Trash2 size={16} />
+                                                            Delete
+                                                        </button>
+                                                    )}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
                     </div>
                 )}
             </main>
@@ -421,6 +513,17 @@ export default function StaffDashboardPage() {
                         alert('✅ Appointment created successfully!');
                     }}
                     onCancel={() => setShowBookingModal(false)}
+                />
+            )}
+
+            {showEmergencyModal && (
+                <EmergencyAppointmentModal
+                    onSuccess={() => {
+                        setShowEmergencyModal(false);
+                        fetchDashboardData();
+                        alert('✅ Emergency appointment created successfully!');
+                    }}
+                    onClose={() => setShowEmergencyModal(false)}
                 />
             )}
 
@@ -582,9 +685,8 @@ function BillModal({ appointment, onClose, onSuccess }) {
                                         </div>
                                         <div className="text-right ml-4">
                                             <p className="font-semibold text-gray-900">₹{bill.totalAmount}</p>
-                                            <span className={`text-xs px-2 py-1 rounded-full ${
-                                                bill.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
-                                            }`}>
+                                            <span className={`text-xs px-2 py-1 rounded-full ${bill.status === 'paid' ? 'bg-green-100 text-green-700' : 'bg-red-100 text-red-700'
+                                                }`}>
                                                 {bill.status}
                                             </span>
                                         </div>

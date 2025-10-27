@@ -15,7 +15,8 @@ export async function POST(request) {
         }
 
         // Format phone number (remove country code if present)
-        const formattedPhone = phone.replace(/^\+?91/, '');
+        const formattedPhone = phone;
+        // .replace(/^\+?91/, '');
 
         // Validate phone number (10 digits)
         if (!/^\d{10}$/.test(formattedPhone)) {

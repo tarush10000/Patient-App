@@ -38,6 +38,14 @@ export async function PATCH(request, { params }) {
             return NextResponse.json({ error: 'Appointment not found' }, { status: 404 });
         }
 
+        // Don't send delay messages for emergency appointments
+        if (appointment.isEmergency) {
+            return NextResponse.json({
+                message: 'Delay notification skipped for emergency appointment',
+                appointment
+            });
+        }
+
         // Parse the current time slot to get the ACTUAL appointment time
         const oldTimeSlot = appointment.timeSlot;
 
@@ -61,60 +69,53 @@ export async function PATCH(request, { params }) {
         const oldActualMinutes = oldTotalMinutes % 60;
         const oldActualPeriod = oldActualHours >= 12 ? 'PM' : 'AM';
         const oldDisplayHours = oldActualHours > 12 ? oldActualHours - 12 : (oldActualHours === 0 ? 12 : oldActualHours);
+        
         const oldActualTime = `${oldDisplayHours}:${oldActualMinutes.toString().padStart(2, '0')} ${oldActualPeriod}`;
 
-        // Calculate NEW time by adding delay to the actual appointment time
-        const newTotalMinutes = oldTotalMinutes + delayMinutes;
+        // Calculate NEW time (OLD time + delay)
+        let newTotalMinutes = oldTotalMinutes + delayMinutes;
+        const newActualHours = Math.floor(newTotalMinutes / 60) % 24;
+        const newActualMinutes = newTotalMinutes % 60;
+        const newActualPeriod = newActualHours >= 12 ? 'PM' : 'AM';
+        const newDisplayHours = newActualHours > 12 ? newActualHours - 12 : (newActualHours === 0 ? 12 : newActualHours);
+        
+        const newActualTime = `${newDisplayHours}:${newActualMinutes.toString().padStart(2, '0')} ${newActualPeriod}`;
 
-        const newHours = Math.floor(newTotalMinutes / 60) % 24;
-        const newMinutes = newTotalMinutes % 60;
-        const newPeriod = newHours >= 12 ? 'PM' : 'AM';
-        const displayHours = newHours > 12 ? newHours - 12 : (newHours === 0 ? 12 : newHours);
+        // Send delay notification via WhatsApp (only for non-emergency appointments)
+        const appointmentDateObj = new Date(appointment.appointmentDate);
+        const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
+            weekday: 'long',
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric'
+        });
 
-        const newStartTime = `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
+        const consultationTypeFormatted = appointment.consultationType
+            .replace(/-/g, ' ')
+            .replace(/\b\w/g, l => l.toUpperCase());
 
-        // Calculate new end time (15 minutes after start)
-        const endTotalMinutes = newTotalMinutes + 15;
-        const endHours = Math.floor(endTotalMinutes / 60) % 24;
-        const endMins = endTotalMinutes % 60;
-        const endPeriod = endHours >= 12 ? 'PM' : 'AM';
-        const endDisplayHours = endHours > 12 ? endHours - 12 : (endHours === 0 ? 12 : endHours);
-        const newEndTime = `${endDisplayHours}:${endMins.toString().padStart(2, '0')} ${endPeriod}`;
-
-        const newTimeSlot = `${newStartTime} - ${newEndTime}`;
-
-        // Update appointment
-        appointment.timeSlot = newTimeSlot;
-        await appointment.save();
-
-        // Send reschedule notification via WhatsApp with ACTUAL times
         try {
-            const formattedDate = new Date(appointment.appointmentDate).toLocaleDateString('en-IN', {
-                day: 'numeric',
-                month: 'long',
-                year: 'numeric'
-            });
-            await whatsBoostService.sendAppointmentReschedule(
+            await whatsBoostService.sendAppointmentDelay(
                 appointment.phone,
                 {
                     patientName: appointment.fullName,
-                    oldDate: formattedDate,
-                    oldTimeSlot: oldActualTime,  // Use calculated actual time
-                    newDate: formattedDate,
-                    newTimeSlot: newStartTime    // Use the new actual time
+                    date: formattedDate,
+                    oldTime: oldActualTime,
+                    newTime: newActualTime,
+                    delayMinutes,
+                    consultationType: consultationTypeFormatted
                 }
             );
-        } catch (msgError) {
-            console.error('Failed to send reschedule notification:', msgError);
-            // Don't fail the request if messaging fails
+        } catch (messageError) {
+            console.error('Failed to send delay message:', messageError);
+            // Continue even if message fails
         }
 
         return NextResponse.json({
-            message: 'Appointment delayed successfully',
-            appointment: {
-                ...appointment.toObject(),
-                patientId: appointment.patientId._id
-            }
+            message: 'Delay notification sent successfully',
+            appointment,
+            oldTime: oldActualTime,
+            newTime: newActualTime
         });
 
     } catch (error) {

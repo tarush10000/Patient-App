@@ -38,6 +38,11 @@ const AppointmentSchema = new mongoose.Schema({
         enum: ['upcoming', 'seen', 'cancelled'],
         default: 'upcoming'
     },
+    // Emergency appointment flag
+    isEmergency: {
+        type: Boolean,
+        default: false
+    },
     // Reminder tracking fields
     reminderSent: {
         type: Boolean,
