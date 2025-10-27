@@ -1,548 +1,440 @@
-'use client';
+import { useRef } from 'react';
+import { toPng } from 'html-to-image';
+import jsPDF from 'jspdf';
 
-import { useState } from 'react';
-import { X, Download, Share2 } from 'lucide-react';
+const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
+    const billContentRef = useRef(null);
+    console.log('Bill Data:', bill);
 
-export default function BillDetailModal({ bill, onClose, clinicInfo }) {
-    const [downloading, setDownloading] = useState(false);
+    const handleDownloadPDF = async () => {
+        const element = billContentRef.current;
 
-    const formatDate = (dateString) => {
-        return new Date(dateString).toLocaleDateString('en-IN', {
-            day: '2-digit',
-            month: 'short',
-            year: 'numeric'
-        });
-    };
 
-    const formatTime = (dateString) => {
-        return new Date(dateString).toLocaleTimeString('en-IN', {
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    // Parse items string back to array
-    const parseItems = () => {
-        const itemsArray = bill.items.split(', ');
-        const parsed = [];
-
-        for (let i = 0; i < itemsArray.length; i += 3) {
-            if (itemsArray[i] && itemsArray[i + 1] && itemsArray[i + 2]) {
-                parsed.push({
-                    service: itemsArray[i],
-                    amount: parseFloat(itemsArray[i + 1]),
-                    paymentMethod: itemsArray[i + 2]
-                });
-            }
+        if (!element) {
+            console.error('Bill content element not found');
+            return;
         }
 
-        return parsed;
-    };
+        const billNo = bill?.billNo || 'Bill';
 
-    const items = parseItems();
-
-    const handleDownload = async () => {
-        setDownloading(true);
         try {
-            const printWindow = window.open('', '', 'height=900,width=800');
-            
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                    <head>
-                        <title>Bill - ${bill._id.slice(-8).toUpperCase()}</title>
-                        <meta charset="UTF-8">
-                        <style>
-                            @page {
-                                size: A4;
-                                margin: 15mm;
-                            }
-                            
-                            * { 
-                                margin: 0; 
-                                padding: 0; 
-                                box-sizing: border-box; 
-                            }
-                            
-                            body { 
-                                font-family: 'Arial', sans-serif;
-                                background: white;
-                                color: #000;
-                                line-height: 1.4;
-                                padding: 20mm;
-                            }
-                            
-                            .bill-container { 
-                                max-width: 210mm;
-                                margin: 0 auto; 
-                                background: white;
-                            }
-                            
-                            .header { 
-                                display: flex;
-                                align-items: flex-start;
-                                justify-content: space-between;
-                                margin-bottom: 20px; 
-                                padding-bottom: 15px; 
-                                border-bottom: 2px solid #000;
-                            }
-                            
-                            .logo-section {
-                                flex-shrink: 0;
-                                width: 80px;
-                            }
-                            
-                            .logo-section img {
-                                width: 70px;
-                                height: 70px;
-                                object-fit: contain;
-                            }
-                            
-                            .header-center {
-                                flex: 1;
-                                text-align: center;
-                                padding: 0 20px;
-                            }
-                            
-                            .clinic-name { 
-                                font-size: 22px; 
-                                font-weight: bold; 
-                                color: #000;
-                                text-transform: uppercase;
-                                letter-spacing: 0.5px;
-                                margin-bottom: 4px;
-                            }
-                            
-                            .tagline {
-                                font-size: 11px;
-                                color: #555;
-                                font-style: italic;
-                                margin-bottom: 8px;
-                            }
-                            
-                            .clinic-contact { 
-                                font-size: 10px; 
-                                color: #333; 
-                                line-height: 1.5;
-                            }
-                            
-                            .doctor-section { 
-                                margin: 15px 0;
-                                padding: 10px 15px;
-                                background: #f8f8f8;
-                                border-left: 4px solid #000;
-                            }
-                            
-                            .doctor-name { 
-                                font-size: 15px; 
-                                font-weight: bold; 
-                                color: #000;
-                                margin-bottom: 2px;
-                            }
-                            
-                            .doctor-qualification { 
-                                font-size: 10px; 
-                                color: #444;
-                                line-height: 1.4;
-                            }
-                            
-                            .bill-title {
-                                text-align: center;
-                                font-size: 18px;
-                                font-weight: bold;
-                                margin: 20px 0 15px;
-                                text-transform: uppercase;
-                                letter-spacing: 1px;
-                            }
-                            
-                            .bill-details { 
-                                margin: 15px 0; 
-                                display: grid;
-                                grid-template-columns: 1fr 1fr;
-                                gap: 8px 20px;
-                                font-size: 11px;
-                            }
-                            
-                            .detail-item {
-                                display: flex;
-                            }
-                            
-                            .detail-label { 
-                                font-weight: 600; 
-                                color: #000;
-                                min-width: 100px;
-                            }
-                            
-                            .detail-value {
-                                color: #333;
-                            }
-                            
-                            table { 
-                                width: 100%; 
-                                border-collapse: collapse; 
-                                margin: 20px 0; 
-                                font-size: 11px;
-                                border: 1px solid #000;
-                            }
-                            
-                            th { 
-                                padding: 10px 8px; 
-                                text-align: left; 
-                                background: #000;
-                                color: white;
-                                font-weight: 600;
-                                border: 1px solid #000;
-                            }
-                            
-                            th:last-child, td:last-child {
-                                text-align: right;
-                            }
-                            
-                            td { 
-                                padding: 8px; 
-                                border: 1px solid #ddd; 
-                                color: #000;
-                            }
-                            
-                            tbody tr:nth-child(odd) {
-                                background-color: #fafafa;
-                            }
-                            
-                            .total-row { 
-                                font-weight: bold; 
-                                font-size: 13px; 
-                                background: #f0f0f0 !important;
-                                border-top: 2px solid #000 !important;
-                            }
-                            
-                            .total-row td {
-                                padding: 12px 8px;
-                                border: 1px solid #000;
-                            }
-                            
-                            .payment-info { 
-                                margin: 20px 0 15px; 
-                                padding: 12px 15px;
-                                background: #f8f8f8;
-                                border: 1px solid #ddd;
-                                font-size: 11px;
-                            }
-                            
-                            .payment-row {
-                                display: flex;
-                                justify-content: space-between;
-                                margin: 5px 0;
-                            }
-                            
-                            .status-paid { 
-                                color: #047857; 
-                                font-weight: bold;
-                            }
-                            
-                            .status-unpaid { 
-                                color: #c2410c; 
-                                font-weight: bold;
-                            }
-                            
-                            .footer { 
-                                margin-top: 30px; 
-                                padding-top: 12px; 
-                                border-top: 1px solid #000; 
-                                text-align: center; 
-                                font-size: 10px;
-                                color: #555;
-                            }
-                            
-                            .footer-note {
-                                margin: 5px 0;
-                            }
-                            
-                            @media print {
-                                body { 
-                                    padding: 10mm; 
-                                }
-                                
-                                .no-print { 
-                                    display: none !important; 
-                                }
-                                
-                                table {
-                                    page-break-inside: avoid;
-                                }
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        <div class="bill-container">
-                            <div class="header">
-                                <div class="logo-section">
-                                    <img src="/android-chrome-512x512.png" alt="Logo" onerror="this.style.display='none'" />
-                                </div>
-                                <div class="header-center">
-                                    <div class="clinic-name">${clinicInfo.name}</div>
-                                    <div class="tagline">Women's healthcare - all ages, all stages</div>
-                                    <div class="clinic-contact">
-                                        ${clinicInfo.address}<br>
-                                        Phone: ${clinicInfo.phone} | Email: ${clinicInfo.email}
-                                    </div>
-                                </div>
-                                <div class="logo-section"></div>
-                            </div>
+            const dataUrl = await toPng(element, {
+                quality: 1,
+                pixelRatio: 2,
+                backgroundColor: '#ffffff',
+            });
 
-                            <div class="doctor-section">
-                                <div class="doctor-name">Dr. ${clinicInfo.doctorName}</div>
-                                <div class="doctor-qualification">${clinicInfo.doctorQualification}</div>
-                            </div>
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const img = new Image();
+            img.src = dataUrl;
 
-                            <div class="bill-title">BILL / INVOICE</div>
-
-                            <div class="bill-details">
-                                <div class="detail-item">
-                                    <span class="detail-label">Bill No:</span>
-                                    <span class="detail-value">#${bill._id.slice(-8).toUpperCase()}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Date:</span>
-                                    <span class="detail-value">${formatDate(bill.billDate)}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Patient:</span>
-                                    <span class="detail-value">${bill.appointmentId?.fullName || 'N/A'}</span>
-                                </div>
-                                <div class="detail-item">
-                                    <span class="detail-label">Phone:</span>
-                                    <span class="detail-value">${bill.appointmentId?.phone || 'N/A'}</span>
-                                </div>
-                            </div>
-
-                            <table>
-                                <thead>
-                                    <tr>
-                                        <th style="width: 50px;">S.No</th>
-                                        <th>Service</th>
-                                        <th style="width: 120px;">Payment Mode</th>
-                                        <th style="width: 100px;">Amount (₹)</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                                    ${items.map((item, index) => `
-                                    <tr>
-                                        <td>${index + 1}</td>
-                                        <td>${item.service}</td>
-                                        <td>${item.paymentMethod}</td>
-                                        <td>₹${item.amount.toFixed(2)}</td>
-                                    </tr>
-                                    `).join('')}
-                                    <tr class="total-row">
-                                        <td colspan="3">TOTAL</td>
-                                        <td>₹${bill.totalAmount.toFixed(2)}</td>
-                                    </tr>
-                                </tbody>
-                            </table>
-
-                            <div class="payment-info">
-                                <div class="payment-row">
-                                    <span><strong>Payment Status:</strong></span>
-                                    <span class="${bill.status === 'paid' ? 'status-paid' : 'status-unpaid'}">
-                                        ${bill.status === 'paid' ? 'PAID' : 'UNPAID'}
-                                    </span>
-                                </div>
-                                ${bill.paidDate ? `
-                                <div class="payment-row">
-                                    <span><strong>Payment Date:</strong></span>
-                                    <span>${formatDate(bill.paidDate)}</span>
-                                </div>
-                                ` : ''}
-                            </div>
-
-                            <div class="footer">
-                                <div class="footer-note">Thank you for choosing ${clinicInfo.name}</div>
-                                <div class="footer-note">This is a computer-generated receipt and doesn't require signature / stamp.</div>
-                            </div>
-                        </div>
-                    </body>
-                </html>
-            `);
-            
-            printWindow.document.close();
-            printWindow.focus();
-            setTimeout(() => {
-                printWindow.print();
-                printWindow.close();
-            }, 300);
+            img.onload = () => {
+                const imgWidth = 210;
+                const imgHeight = (img.height * imgWidth) / img.width;
+                pdf.addImage(dataUrl, 'PNG', 0, 0, imgWidth, imgHeight);
+                pdf.save(`Bill_${billNo}.pdf`);
+            };
         } catch (error) {
-            console.error('Download error:', error);
-            alert('Failed to download bill. Please try again.');
-        } finally {
-            setDownloading(false);
+            console.error('Error generating PDF:', error);
+            alert('Failed to generate PDF. Please try again.');
         }
     };
 
     const handleShare = async () => {
-        const shareText = `BILL - ${clinicInfo.name}\n\n` +
-            `Bill No: #${bill._id.slice(-8).toUpperCase()}\n` +
-            `Date: ${formatDate(bill.billDate)}\n` +
-            `Patient: ${bill.appointmentId?.fullName || 'N/A'}\n` +
-            `Total Amount: Rs.${bill.totalAmount}\n` +
-            `Status: ${bill.status === 'paid' ? 'Paid' : 'Unpaid'}`;
-        
-        if (navigator.share) {
-            try {
-                await navigator.share({
-                    title: 'Medical Bill',
-                    text: shareText
-                });
-            } catch (error) {
-                if (error.name !== 'AbortError') {
-                    console.error('Share error:', error);
+        const element = billContentRef.current;
+
+        if (!element) {
+            console.error('Bill content element not found');
+            return;
+        }
+
+        const billNo = bill?.billNo || 'Bill';
+
+        try {
+            const blob = await toPng(element, {
+                quality: 1,
+                pixelRatio: 2,
+                backgroundColor: '#ffffff',
+            }).then(dataUrl => {
+                return fetch(dataUrl).then(res => res.blob());
+            });
+
+            const file = new File([blob], `Bill_${billNo}.png`, {
+                type: 'image/png'
+            });
+
+            if (navigator.share && navigator.canShare({ files: [file] })) {
+                try {
+                    await navigator.share({
+                        files: [file],
+                        title: 'Bill Details',
+                        text: `Bill #${billNo}`,
+                    });
+                } catch (shareError) {
+                    if (shareError.name !== 'AbortError') {
+                        console.error('Error sharing:', shareError);
+                    }
                 }
+            } else {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `Bill_${billNo}.png`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
             }
-        } else {
-            try {
-                await navigator.clipboard.writeText(shareText);
-                alert('Bill details copied to clipboard');
-            } catch (error) {
-                console.error('Clipboard error:', error);
-            }
+        } catch (error) {
+            console.error('Error sharing:', error);
+            alert('Failed to share. Please try again.');
         }
     };
 
+    const handlePrint = () => {
+        window.print();
+    };
+
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-60 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-lg max-w-4xl w-full my-8 shadow-2xl">
-                {/* Header Actions */}
-                <div className="flex justify-between items-center px-6 py-4 border-b border-gray-300 bg-gray-50">
-                    <h3 className="text-xl font-semibold text-gray-900">Bill Details</h3>
-                    <div className="flex gap-3">
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+                {/* Header with buttons */}
+                <div className="flex items-center justify-between p-4 border-b modal-header-buttons">
+                    <h2 className="text-xl font-semibold">Bill Details</h2>
+
+                    <div className="flex gap-2">
                         <button
-                            onClick={handleDownload}
-                            disabled={downloading}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700 transition disabled:opacity-50 font-medium text-sm"
+                            onClick={handleDownloadPDF}
+                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
                         >
-                            <Download size={16} />
-                            {downloading ? 'Preparing...' : 'Download'}
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                            </svg>
+                            Download
                         </button>
+
+                        <button
+                            onClick={handlePrint}
+                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                        >
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
+                            </svg>
+                            Print
+                        </button>
+
                         <button
                             onClick={handleShare}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded hover:bg-green-700 transition font-medium text-sm"
+                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
                         >
-                            <Share2 size={16} />
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />
+                            </svg>
                             Share
                         </button>
-                        <button 
-                            onClick={onClose} 
-                            className="text-gray-500 hover:text-gray-700 hover:bg-gray-200 p-2 rounded transition"
+
+                        <button
+                            onClick={onClose}
+                            className="p-2 hover:bg-gray-100 rounded-lg transition"
                         >
-                            <X size={20} />
+                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                            </svg>
                         </button>
                     </div>
                 </div>
 
-                {/* Bill Content */}
-                <div className="p-8 max-h-[calc(100vh-180px)] overflow-y-auto">
-                    {/* Header - Logo Left, Name Center */}
-                    <div className="flex items-start justify-between mb-5 pb-4 border-b-2 border-gray-900">
-                        <div className="w-20 flex-shrink-0">
-                            <img 
-                                src="/android-chrome-512x512.png" 
-                                alt="Clinic Logo" 
-                                className="w-16 h-16 object-contain"
-                                onError={(e) => {
-                                    e.target.style.display = 'none';
-                                }}
-                            />
+                {/* Bill Content with Inline Styles */}
+                <div className="overflow-y-auto max-h-[calc(90vh-80px)]">
+                    <div ref={billContentRef} data-print-content style={{ padding: '32px', backgroundColor: '#ffffff' }}>
+                        {/* Header - Logo Left, Name Center */}
+                        <div style={{
+                            display: 'flex',
+                            alignItems: 'flex-start',
+                            justifyContent: 'space-between',
+                            marginBottom: '20px',
+                            paddingBottom: '16px',
+                            borderBottom: '2px solid #000'
+                        }}>
+                            {/* Logo */}
+                            <div style={{ flex: '0 0 80px' }}>
+                                <img
+                                    src="/logo.png"
+                                    alt="Clinic Logo"
+                                    style={{ width: '80px', height: '80px', objectFit: 'contain' }}
+                                />
+                            </div>
+
+                            {/* Center Content */}
+                            <div style={{ flex: '1', textAlign: 'center', padding: '0 16px' }}>
+                                <h2 style={{
+                                    fontSize: '24px',
+                                    fontWeight: 'bold',
+                                    color: '#111827',
+                                    textTransform: 'uppercase',
+                                    letterSpacing: '0.05em',
+                                    marginBottom: '4px'
+                                }}>
+                                    {clinicInfo.name}
+                                </h2>
+                                <p style={{ fontSize: '12px', color: '#4b5563', fontStyle: 'italic', marginBottom: '8px' }}>
+                                    {clinicInfo.tagline}
+                                </p>
+                                <p style={{ fontSize: '12px', color: '#4b5563', lineHeight: '1.5' }}>
+                                    {clinicInfo.address}<br />
+                                    Phone: {clinicInfo.phone} | Email: {clinicInfo.email}
+                                </p>
+                            </div>
+
+                            {/* Right spacer for balance */}
+                            <div style={{ flex: '0 0 80px' }}></div>
                         </div>
-                        <div className="flex-1 text-center px-4">
-                            <h2 className="text-2xl font-bold text-gray-900 uppercase tracking-wide mb-1">{clinicInfo.name}</h2>
-                            <p className="text-xs text-gray-600 italic mb-2">Women's healthcare - all ages, all stages</p>
-                            <p className="text-xs text-gray-600 leading-relaxed">
-                                {clinicInfo.address}<br/>
-                                Phone: {clinicInfo.phone} | Email: {clinicInfo.email}
+
+                        {/* Doctor Info */}
+                        <div style={{
+                            borderLeft: '4px solid #000',
+                            paddingLeft: '16px',
+                            marginBottom: '24px'
+                        }}>
+                            <h3 style={{ fontSize: '18px', fontWeight: 'bold', color: '#000' }}>
+                                {clinicInfo.doctorName}
+                            </h3>
+                            <p style={{ fontSize: '14px', color: '#4b5563' }}>
+                                {clinicInfo.doctorQualification}
                             </p>
                         </div>
-                        <div className="w-20"></div>
-                    </div>
 
-                    {/* Doctor Info */}
-                    <div className="mb-5 bg-gray-50 p-3 border-l-4 border-gray-900">
-                        <p className="text-sm font-bold text-gray-900 mb-1">Dr. {clinicInfo.doctorName}</p>
-                        <p className="text-xs text-gray-600 leading-snug">{clinicInfo.doctorQualification}</p>
-                    </div>
+                        {/* Title */}
+                        <h3 style={{
+                            fontSize: '28px',
+                            fontWeight: 'bold',
+                            textAlign: 'center',
+                            marginBottom: '24px',
+                            color: '#111827',
+                            letterSpacing: '0.05em'
+                        }}>
+                            BILL / INVOICE
+                        </h3>
 
-                    {/* Bill Title */}
-                    <h3 className="text-center text-lg font-bold uppercase tracking-wider my-5">Bill / Invoice</h3>
+                        {/* Bill Details Grid */}
+                        <div style={{
+                            display: 'grid',
+                            gridTemplateColumns: '1fr 1fr',
+                            gap: '16px',
+                            marginBottom: '24px'
+                        }}>
+                            <div>
+                                <div style={{ marginBottom: '12px' }}>
+                                    <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>Bill No:</span>
+                                    <span style={{ marginLeft: '8px', color: '#4b5563', fontSize: '14px' }}>
+                                        #{bill?._id?.toString().slice(-8).toUpperCase()}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>Patient:</span>
+                                    <span style={{ marginLeft: '8px', color: '#4b5563', fontSize: '14px' }}>
+                                        {bill?.patientId?.fullName}
+                                    </span>
+                                </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                                <div style={{ marginBottom: '12px' }}>
+                                    <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>Date:</span>
+                                    <span style={{ marginLeft: '8px', color: '#4b5563', fontSize: '14px' }}>
+                                        {bill?.billDate ? new Date(bill.billDate).toLocaleDateString('en-IN', {
+                                            day: '2-digit',
+                                            month: 'short',
+                                            year: 'numeric'
+                                        }) : ''}
+                                    </span>
+                                </div>
+                                <div>
+                                    <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>Phone:</span>
+                                    <span style={{ marginLeft: '8px', color: '#4b5563', fontSize: '14px' }}>
+                                        {bill?.patientId?.phone}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
 
-                    {/* Compact Bill Details */}
-                    <div className="grid grid-cols-2 gap-x-6 gap-y-2 mb-5 text-xs">
-                        <div className="flex">
-                            <span className="font-semibold text-gray-900 w-24">Bill No:</span>
-                            <span className="text-gray-700">#{bill._id.slice(-8).toUpperCase()}</span>
-                        </div>
-                        <div className="flex">
-                            <span className="font-semibold text-gray-900 w-24">Date:</span>
-                            <span className="text-gray-700">{formatDate(bill.billDate)}</span>
-                        </div>
-                        <div className="flex">
-                            <span className="font-semibold text-gray-900 w-24">Patient:</span>
-                            <span className="text-gray-700">{bill.appointmentId?.fullName || bill.patirntId?.phone || 'N/A'}</span>
-                        </div>
-                        <div className="flex">
-                            <span className="font-semibold text-gray-900 w-24">Phone:</span>
-                            <span className="text-gray-700">{bill.appointmentId?.phone || bill.patientId?.phone || 'N/A'}</span>
-                        </div>
-                    </div>
-
-                    {/* Items Table */}
-                    <div className="my-6 border border-gray-900">
-                        <table className="w-full text-xs">
+                        {/* Services Table */}
+                        <table style={{
+                            width: '100%',
+                            borderCollapse: 'collapse',
+                            marginBottom: '24px'
+                        }}>
                             <thead>
-                                <tr className="bg-gray-900 text-white">
-                                    <th className="px-3 py-2 text-left font-semibold w-12">S.No</th>
-                                    <th className="px-3 py-2 text-left font-semibold">Service</th>
-                                    <th className="px-3 py-2 text-left font-semibold w-32">Payment Mode</th>
-                                    <th className="px-3 py-2 text-right font-semibold w-28">Amount (₹)</th>
+                                <tr style={{ backgroundColor: '#1f2937' }}>
+                                    <th style={{
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        color: '#ffffff',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        backgroundColor: '#1f2937'
+                                    }}>
+                                        S.No
+                                    </th>
+                                    <th style={{
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        color: '#ffffff',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        backgroundColor: '#1f2937'
+                                    }}>
+                                        Service
+                                    </th>
+                                    <th style={{
+                                        textAlign: 'left',
+                                        padding: '12px 16px',
+                                        color: '#ffffff',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        backgroundColor: '#1f2937'
+                                    }}>
+                                        Payment Mode
+                                    </th>
+                                    <th style={{
+                                        textAlign: 'right',
+                                        padding: '12px 16px',
+                                        color: '#ffffff',
+                                        fontSize: '14px',
+                                        fontWeight: '600',
+                                        backgroundColor: '#1f2937'
+                                    }}>
+                                        Amount (₹)
+                                    </th>
                                 </tr>
                             </thead>
-                            <tbody className="bg-white">
-                                {items.map((item, index) => (
-                                    <tr key={index} className={`border-b border-gray-200 ${index % 2 === 0 ? 'bg-gray-50' : 'bg-white'}`}>
-                                        <td className="px-3 py-2 text-gray-900">{index + 1}</td>
-                                        <td className="px-3 py-2 text-gray-900 font-medium">{item.service}</td>
-                                        <td className="px-3 py-2 text-gray-700">{item.paymentMethod}</td>
-                                        <td className="px-3 py-2 text-right text-gray-900 font-semibold">₹{item.amount.toFixed(2)}</td>
-                                    </tr>
-                                ))}
-                                <tr className="bg-gray-100 border-t-2 border-gray-900">
-                                    <td colSpan="3" className="px-3 py-3 text-right font-bold text-gray-900 text-sm">TOTAL</td>
-                                    <td className="px-3 py-3 text-right font-bold text-gray-900 text-base">₹{bill.totalAmount.toFixed(2)}</td>
+                            <tbody>
+                                {(() => {
+                                    // Parse the CSV string: "Consultation, 1000, UPI,"
+                                    if (bill?.items && typeof bill.items === 'string') {
+                                        const parts = bill.items.split(',').map(p => p.trim());
+                                        const service = parts[0] || '';
+                                        const amount = parts[1] || '0';
+                                        const paymentMode = parts[2] || '';
+
+                                        return (
+                                            <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                                <td style={{ padding: '12px 16px', fontSize: '14px', color: '#111827' }}>
+                                                    1
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '14px', color: '#111827' }}>
+                                                    {service}
+                                                </td>
+                                                <td style={{ padding: '12px 16px', fontSize: '14px', color: '#111827' }}>
+                                                    {paymentMode}
+                                                </td>
+                                                <td style={{
+                                                    padding: '12px 16px',
+                                                    fontSize: '14px',
+                                                    color: '#111827',
+                                                    textAlign: 'right'
+                                                }}>
+                                                    ₹{parseFloat(amount || 0).toFixed(2)}
+                                                </td>
+                                            </tr>
+                                        );
+                                    }
+
+                                    return (
+                                        <tr style={{ borderBottom: '1px solid #e5e7eb' }}>
+                                            <td colSpan="4" style={{
+                                                padding: '12px 16px',
+                                                fontSize: '14px',
+                                                color: '#6b7280',
+                                                textAlign: 'center'
+                                            }}>
+                                                No services found
+                                            </td>
+                                        </tr>
+                                    );
+                                })()}
+
+                                {/* Total Row */}
+                                <tr style={{ borderTop: '2px solid #000', backgroundColor: '#f9fafb' }}>
+                                    <td colSpan="3" style={{
+                                        padding: '12px 16px',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        color: '#000',
+                                        textAlign: 'right'
+                                    }}>
+                                        TOTAL
+                                    </td>
+                                    <td style={{
+                                        padding: '12px 16px',
+                                        fontSize: '16px',
+                                        fontWeight: 'bold',
+                                        color: '#000',
+                                        textAlign: 'right'
+                                    }}>
+                                        ₹{parseFloat(bill?.totalAmount || 0).toFixed(2)}
+                                    </td>
                                 </tr>
                             </tbody>
                         </table>
-                    </div>
 
-                    {/* Payment Status */}
-                    <div className="my-5 bg-gray-50 p-4 border border-gray-300 text-xs">
-                        <div className="flex justify-between items-center mb-2">
-                            <span className="font-semibold text-gray-900">Payment Status:</span>
-                            <span className={`font-bold ${bill.status === 'paid' ? 'text-green-700' : 'text-orange-700'}`}>
-                                {bill.status === 'paid' ? 'PAID' : 'UNPAID'}
-                            </span>
-                        </div>
-                        {bill.paidDate && (
-                            <div className="flex justify-between items-center">
-                                <span className="font-semibold text-gray-900">Payment Date:</span>
-                                <span className="text-gray-700">{formatDate(bill.paidDate)}</span>
+                        {/* Payment Status */}
+                        <div style={{
+                            backgroundColor: '#f9fafb',
+                            padding: '16px',
+                            borderRadius: '8px',
+                            marginBottom: '24px',
+                            border: '1px solid #e5e7eb'
+                        }}>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                                marginBottom: '8px'
+                            }}>
+                                <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>
+                                    Payment Status:
+                                </span>
+                                <span style={{
+                                    fontWeight: 'bold',
+                                    color: bill?.status?.toLowerCase() === 'paid' ? '#16a34a' : '#dc2626',
+                                    fontSize: '14px',
+                                    textTransform: 'uppercase'
+                                }}>
+                                    {bill?.status}
+                                </span>
                             </div>
-                        )}
-                    </div>
+                            <div style={{
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center'
+                            }}>
+                                <span style={{ fontWeight: '600', color: '#000', fontSize: '14px' }}>
+                                    Payment Date:
+                                </span>
+                                <span style={{ color: '#4b5563', fontSize: '14px' }}>
+                                    {bill?.paidDate ? new Date(bill.paidDate).toLocaleDateString('en-IN', {
+                                        day: '2-digit',
+                                        month: 'short',
+                                        year: 'numeric'
+                                    }) : ''}
+                                </span>
+                            </div>
+                        </div>
 
-                    {/* Footer */}
-                    <div className="text-center pt-4 mt-6 border-t border-gray-900 text-xs text-gray-600">
-                        <p className="mb-1">Thank you for choosing {clinicInfo.name}</p>
-                        <p>This is a computer-generated document</p>
+                        {/* Footer */}
+                        <div style={{ textAlign: 'center', paddingTop: '24px', borderTop: '1px solid #e5e7eb' }}>
+                            <p style={{ fontSize: '14px', color: '#111827', marginBottom: '8px', fontWeight: '600' }}>
+                                Thank you for choosing {clinicInfo.name}
+                            </p>
+                            <p style={{ fontSize: '12px', color: '#6b7280', fontStyle: 'italic' }}>
+                                This is a computer-generated receipt and doesn't require signature / stamp.
+                            </p>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     );
-}
+};
+
+export default BillDetailModal;

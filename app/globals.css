@@ -24,3 +24,96 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+@media print {
+  /* Reset and show only bill content */
+  body * {
+    visibility: hidden;
+  }
+  
+  [data-print-content],
+  [data-print-content] * {
+    visibility: visible;
+  }
+  
+  [data-print-content] {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white !important;
+  }
+  
+  /* Hide modal elements */
+  .modal-header-buttons,
+  .fixed.inset-0 {
+    display: none !important;
+  }
+  
+  /* Force colors and backgrounds to print */
+  * {
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    color-adjust: exact !important;
+  }
+  
+  /* Ensure dark backgrounds print correctly */
+  .bg-gray-800,
+  .bg-gray-900,
+  .bg-black {
+    background-color: #1f2937 !important;
+    color: white !important;
+  }
+  
+  /* Table header styling */
+  thead,
+  thead tr,
+  thead th {
+    background-color: #1f2937 !important;
+    color: white !important;
+    border-color: #1f2937 !important;
+  }
+  
+  /* Borders */
+  .border,
+  .border-t,
+  .border-b,
+  .border-l,
+  .border-r {
+    border-color: #000 !important;
+  }
+  
+  .border-2 {
+    border-width: 2px !important;
+  }
+  
+  /* Text colors */
+  .text-gray-900 {
+    color: #111827 !important;
+  }
+  
+  .text-gray-600 {
+    color: #4b5563 !important;
+  }
+  
+  .text-green-600 {
+    color: #16a34a !important;
+  }
+  
+  /* Remove shadows and rounded corners for print */
+  * {
+    box-shadow: none !important;
+    border-radius: 0 !important;
+  }
+  
+  /* Page setup */
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
+  
+  /* Prevent page breaks inside important elements */
+  .no-break {
+    page-break-inside: avoid;
+  }
+}
