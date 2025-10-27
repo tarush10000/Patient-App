@@ -30,7 +30,8 @@ export default function BillingPage() {
     const fetchBills = async () => {
         try {
             const response = await api.getBills();
-            setBills(response.bills || []);
+            const filtered = (response.bills || []).filter(b => b.appointmentId?.status === 'seen');
+            setBills(filtered);
         } catch (error) {
             console.error('Error fetching bills:', error);
         } finally {
