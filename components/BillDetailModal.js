@@ -307,11 +307,11 @@ export default function BillDetailModal({ bill, onClose, clinicInfo }) {
                                 </div>
                                 <div class="detail-item">
                                     <span class="detail-label">Patient:</span>
-                                    <span class="detail-value">${bill.patientId?.fullName || 'N/A'}</span>
+                                    <span class="detail-value">${bill.appointmentId?.fullName || 'N/A'}</span>
                                 </div>
                                 <div class="detail-item">
                                     <span class="detail-label">Phone:</span>
-                                    <span class="detail-value">${bill.patientId?.phone || 'N/A'}</span>
+                                    <span class="detail-value">${bill.appointmentId?.phone || 'N/A'}</span>
                                 </div>
                             </div>
 
@@ -382,7 +382,7 @@ export default function BillDetailModal({ bill, onClose, clinicInfo }) {
         const shareText = `BILL - ${clinicInfo.name}\n\n` +
             `Bill No: #${bill._id.slice(-8).toUpperCase()}\n` +
             `Date: ${formatDate(bill.billDate)}\n` +
-            `Patient: ${bill.patientId?.fullName || 'N/A'}\n` +
+            `Patient: ${bill.appointmentId?.fullName || 'N/A'}\n` +
             `Total Amount: Rs.${bill.totalAmount}\n` +
             `Status: ${bill.status === 'paid' ? 'Paid' : 'Unpaid'}`;
         
@@ -484,11 +484,11 @@ export default function BillDetailModal({ bill, onClose, clinicInfo }) {
                         </div>
                         <div className="flex">
                             <span className="font-semibold text-gray-900 w-24">Patient:</span>
-                            <span className="text-gray-700">{bill.patientId?.fullName || 'N/A'}</span>
+                            <span className="text-gray-700">{bill.appointmentId?.fullName || bill.patirntId?.phone || 'N/A'}</span>
                         </div>
                         <div className="flex">
                             <span className="font-semibold text-gray-900 w-24">Phone:</span>
-                            <span className="text-gray-700">{bill.patientId?.phone || 'N/A'}</span>
+                            <span className="text-gray-700">{bill.appointmentId?.phone || bill.patientId?.phone || 'N/A'}</span>
                         </div>
                     </div>
 

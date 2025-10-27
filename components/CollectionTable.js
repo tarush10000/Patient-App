@@ -50,6 +50,7 @@ export default function CollectionTable({ bills, onEditBill, onViewBill }) {
             const billData = {
                 _id: bill._id,
                 patientId: bill.patientId,
+                appointmentId: bill.appointmentId,
                 billDate: bill.billDate,
                 items: items,
                 totalAmount: bill.totalAmount,
@@ -72,8 +73,8 @@ export default function CollectionTable({ bills, onEditBill, onViewBill }) {
                 bValue = b.totalAmount;
                 break;
             case 'patient':
-                aValue = a.patientId?.fullName || '';
-                bValue = b.patientId?.fullName || '';
+                aValue = a.appointmentId?.fullName || '';
+                bValue = b.appointmentId?.fullName || '';
                 break;
             case 'status':
                 aValue = a.status;
@@ -241,10 +242,10 @@ export default function CollectionTable({ bills, onEditBill, onViewBill }) {
                                                     <User size={16} className="text-gray-400" />
                                                     <div>
                                                         <div className="text-sm font-medium text-gray-900">
-                                                            {bill.patientId?.fullName || 'N/A'}
+                                                            {bill.appointmentId?.fullName || bill.patientId?.fullName ||'N/A'}
                                                         </div>
                                                         <div className="text-xs text-gray-500">
-                                                            {bill.patientId?.phone || ''}
+                                                            {bill.appointmentId?.phone || bill.patientId?.phone ||''}
                                                         </div>
                                                     </div>
                                                 </div>
