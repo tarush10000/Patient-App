@@ -74,11 +74,21 @@ export default function StaffDashboardPage() {
             const regularApts = todayApts.filter(apt => !apt.isEmergency);
             const emergencyApts = todayApts.filter(apt => apt.isEmergency);
 
+            // Helper function to convert time slot to minutes for sorting
+            const getSlotMinutes = (timeSlot) => {
+                const [time, period] = timeSlot.split(' - ')[0].split(' ');
+                const [hours, minutes] = time.split(':').map(Number);
+
+                let totalMinutes = hours * 60 + minutes;
+                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+                if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+                return totalMinutes;
+            };
+
             // Sort regular appointments by time slot
             const sorted = regularApts.sort((a, b) => {
-                const timeA = a.timeSlot.split(' - ')[0];
-                const timeB = b.timeSlot.split(' - ')[0];
-                return timeA.localeCompare(timeB);
+                return getSlotMinutes(a.timeSlot) - getSlotMinutes(b.timeSlot);
             });
 
             setTodayAppointments(sorted);
@@ -260,7 +270,7 @@ export default function StaffDashboardPage() {
                                             <Clock size={20} />
                                             <h4 className="font-bold text-lg">{timeSlot}</h4>
                                         </div>
-                                        <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold">
+                                        <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-blue-300">
                                             {appointments.length} {appointments.length === 1 ? 'patient' : 'patients'}
                                         </span>
                                     </div>
@@ -335,7 +345,23 @@ export default function StaffDashboardPage() {
                                                                     <ClockIcon size={14} />
                                                                     +30
                                                                 </button>
+                                                                <button
+                                                                    onClick={() => handleDelayAppointment(apt._id, 60)}
+                                                                    className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                    title="Delay by 1 hour"
+                                                                >
+                                                                    <ClockIcon size={14} />
+                                                                    +1hr
+                                                                </button>
                                                             </div>
+                                                            <button
+                                                                onClick={() => handleAddBill(apt)}
+                                                                className="flex items-center justify-center gap-1 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-xs font-medium border border-green-200"
+                                                                title="Add Bill"
+                                                            >
+                                                                <DollarSign size={14} />
+                                                                Bill
+                                                            </button>
                                                             <button
                                                                 onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
                                                                 className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium border border-red-200"
@@ -393,7 +419,7 @@ export default function StaffDashboardPage() {
                                             <AlertTriangle size={20} />
                                             <h4 className="font-bold text-lg">Emergency Appointments</h4>
                                         </div>
-                                        <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold">
+                                        <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-blue-300">
                                             {emergencyAppointments.length} {emergencyAppointments.length === 1 ? 'patient' : 'patients'}
                                         </span>
                                     </div>
@@ -548,10 +574,10 @@ function BillModal({ appointment, onClose, onSuccess }) {
     const [isPaid, setIsPaid] = useState(true);
 
     const quickServices = [
-        { name: 'Consultation', amount: 1000, paymentMethod: 'UPI' },
+        { name: 'ECG', amount: 300, paymentMethod: 'Cash' },
         { name: 'Consultation', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'UPI' }
+        { name: 'PAC', amount: 1000, paymentMethod: 'Cash' },
+        { name: 'Blood Test', amount: 500, paymentMethod: 'Cash' }
     ];
 
     const paymentMethods = ['Cash', 'UPI', 'Card', 'Online'];

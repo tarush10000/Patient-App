@@ -57,14 +57,25 @@ export default function StaffAppointmentsPage() {
     const fetchAllAppointments = async () => {
         try {
             const response = await api.getAppointments();
+
+            // Helper function to convert time slot to minutes for sorting
+            const getSlotMinutes = (timeSlot) => {
+                const [time, period] = timeSlot.split(' - ')[0].split(' ');
+                const [hours, minutes] = time.split(':').map(Number);
+
+                let totalMinutes = hours * 60 + minutes;
+                if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
+                if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+                return totalMinutes;
+            };
+
             const sorted = (response.appointments || []).sort((a, b) => {
                 const dateCompare = new Date(b.appointmentDate) - new Date(a.appointmentDate);
                 if (dateCompare !== 0) return dateCompare;
 
-                // If same date, sort by time slot
-                const timeA = a.timeSlot.split(' - ')[0];
-                const timeB = b.timeSlot.split(' - ')[0];
-                return timeA.localeCompare(timeB);
+                // If same date, sort by time slot using minutes
+                return getSlotMinutes(a.timeSlot) - getSlotMinutes(b.timeSlot);
             });
             setAppointments(sorted);
         } catch (error) {
@@ -131,9 +142,8 @@ export default function StaffAppointmentsPage() {
             const dateCompare = new Date(a.appointmentDate) - new Date(b.appointmentDate);
             if (dateCompare !== 0) return dateCompare;
 
-            const timeA = a.timeSlot.split(' - ')[0];
-            const timeB = b.timeSlot.split(' - ')[0];
-            return timeA.localeCompare(timeB);
+            // Sort by time slot using minutes
+            return getSlotMinutes(a.timeSlot) - getSlotMinutes(b.timeSlot);
         });
 
         setFilteredAppointments(filtered);
@@ -418,7 +428,7 @@ export default function StaffAppointmentsPage() {
                                                                             #{index + 1}
                                                                         </span>
                                                                         <span className="text-sm font-semibold text-gray-600">
-                                                                            Approx: {calculateActualAppointmentTime(slot, index, apt)}
+                                                                            Approx: {calculateActualAppointmentTime(timeSlot, index, apt)}
                                                                         </span>
                                                                     </div>
                                                                     <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
@@ -558,10 +568,10 @@ function BillModal({ appointment, onClose, onSuccess }) {
     const [isPaid, setIsPaid] = useState(true);
 
     const quickServices = [
-        { name: 'Consultation', amount: 1000, paymentMethod: 'UPI' },
+        { name: 'ECG', amount: 300, paymentMethod: 'Cash' },
         { name: 'Consultation', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'Cash' },
-        { name: 'Tests', amount: 1000, paymentMethod: 'UPI' }
+        { name: 'PAC', amount: 1000, paymentMethod: 'Cash' },
+        { name: 'Blood Test', amount: 500, paymentMethod: 'Cash' }
     ];
 
     const paymentMethods = ['Cash', 'UPI', 'Card', 'Online'];

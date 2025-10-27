@@ -17,7 +17,7 @@ export default function BillingPage() {
     const clinicInfo = {
         name: "Dr. Anjali's Women Wellness Center",
         address: "Plot No. 22, Harsh Commercial Park, Garh Road, Meerut",
-        phone: "9837033107, 9837033107",
+        phone: "7300843777, 9837033107",
         email: "www.dranjaligupta.in",
         doctorName: "Dr. Anjali Gupta",
         doctorQualification: "MBBS, DNB (Gold Medalist), Obstetrician Gynecologist, Laparoscopic Surgeon & Cosmetic Gynaecologist"
