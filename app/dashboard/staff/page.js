@@ -104,6 +104,10 @@ export default function StaffDashboardPage() {
                 return acc;
             }, {});
 
+            Object.keys(grouped).forEach(slot => {
+                grouped[slot].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+            });
+
             setGroupedAppointments(grouped);
 
             const totalPatients = usersRes.users?.filter(u => u.role === 'patient').length || 0;

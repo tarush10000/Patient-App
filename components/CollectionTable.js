@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import { FileText, User, Calendar, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 
-export default function CollectionTable({ bills, onEditBill }) {
+export default function CollectionTable({ bills, onEditBill, onViewBill }) {
     const [sortField, setSortField] = useState('billDate');
     const [sortOrder, setSortOrder] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
@@ -35,12 +35,18 @@ export default function CollectionTable({ bills, onEditBill }) {
         }
     };
 
-    const handleBillClick = (bill) => {
+    // Handler for row click - opens detail view
+    const handleRowClick = (bill) => {
+        if (onViewBill) {
+            onViewBill(bill);
+        }
+    };
+
+    // Handler for edit button click - opens edit modal
+    const handleEditClick = (e, bill) => {
+        e.stopPropagation(); // Prevent row click from firing
         if (onEditBill) {
-            // Parse the items for the bill
             const items = bill.getParsedItems ? bill.getParsedItems() : parseBillItems(bill.items);
-            
-            // Create the bill data object to pass to the modal
             const billData = {
                 _id: bill._id,
                 patientId: bill.patientId,
@@ -49,7 +55,6 @@ export default function CollectionTable({ bills, onEditBill }) {
                 totalAmount: bill.totalAmount,
                 status: bill.status
             };
-            
             onEditBill(billData);
         }
     };
@@ -93,7 +98,7 @@ export default function CollectionTable({ bills, onEditBill }) {
 
     const SortIcon = ({ field }) => {
         if (sortField !== field) return <ChevronDown size={16} className="text-gray-400" />;
-        return sortOrder === 'asc' 
+        return sortOrder === 'asc'
             ? <ChevronUp size={16} className="text-blue-600" />
             : <ChevronDown size={16} className="text-blue-600" />;
     };
@@ -144,69 +149,73 @@ export default function CollectionTable({ bills, onEditBill }) {
             {currentBills.length === 0 ? (
                 <div className="text-center py-12 text-gray-500">
                     <FileText size={48} className="mx-auto mb-4 opacity-50" />
-                    <p>No collection records found</p>
+                    <p className="text-lg font-medium">No collection records found</p>
+                    <p className="text-sm mt-2">Try adjusting your filters</p>
                 </div>
             ) : (
                 <>
-                    {/* Table */}
                     <div className="overflow-x-auto">
-                        <table className="w-full">
-                            <thead className="bg-gray-50 border-b-2 border-gray-200">
+                        <table className="min-w-full divide-y divide-gray-200">
+                            <thead className="bg-gray-50">
                                 <tr>
-                                    <th 
-                                        className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    <th
                                         onClick={() => handleSort('billDate')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                     >
                                         <div className="flex items-center gap-1">
                                             Date
                                             <SortIcon field="billDate" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    <th
                                         onClick={() => handleSort('patient')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                     >
                                         <div className="flex items-center gap-1">
                                             Patient
                                             <SortIcon field="patient" />
                                         </div>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Services
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Payment Method
                                     </th>
-                                    <th 
-                                        className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    <th
                                         onClick={() => handleSort('amount')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                     >
                                         <div className="flex items-center gap-1">
                                             Amount
                                             <SortIcon field="amount" />
                                         </div>
                                     </th>
-                                    <th 
-                                        className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
+                                    <th
                                         onClick={() => handleSort('status')}
+                                        className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer hover:bg-gray-100"
                                     >
                                         <div className="flex items-center gap-1">
                                             Status
                                             <SortIcon field="status" />
                                         </div>
                                     </th>
-                                    <th className="px-6 py-3 text-left text-xs font-bold text-gray-600 uppercase tracking-wider">
+                                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                                         Actions
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody className="divide-y divide-gray-200">
+                            <tbody className="bg-white divide-y divide-gray-200">
                                 {currentBills.map((bill) => {
                                     const items = bill.getParsedItems ? bill.getParsedItems() : parseBillItems(bill.items);
                                     const paymentMethods = [...new Set(items.map(item => item.paymentMethod))];
 
                                     return (
-                                        <tr key={bill._id} className="hover:bg-blue-50 transition-colors group">
+                                        <tr 
+                                            key={bill._id} 
+                                            onClick={() => handleRowClick(bill)}
+                                            className="hover:bg-blue-50 transition-colors cursor-pointer group"
+                                        >
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <div className="flex items-center gap-2">
                                                     <Calendar size={16} className="text-gray-400" />
@@ -271,9 +280,8 @@ export default function CollectionTable({ bills, onEditBill }) {
                                             </td>
                                             <td className="px-6 py-4 whitespace-nowrap">
                                                 <button
-                                                    onClick={() => handleBillClick(bill)}
-                                                    className="inline-flex items-center gap-1 px-3 py-1.5 text-sm font-medium text-blue-600 bg-blue-50 rounded-lg hover:bg-blue-100 transition-colors"
-                                                    title="Edit Bill"
+                                                    onClick={(e) => handleEditClick(e, bill)}
+                                                    className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded hover:bg-blue-100 transition text-sm font-medium"
                                                 >
                                                     <Edit2 size={14} />
                                                     Edit
@@ -297,7 +305,7 @@ export default function CollectionTable({ bills, onEditBill }) {
                                 >
                                     Previous
                                 </button>
-                                
+
                                 <div className="flex items-center gap-2">
                                     {[...Array(totalPages)].map((_, idx) => {
                                         const page = idx + 1;
@@ -311,11 +319,10 @@ export default function CollectionTable({ bills, onEditBill }) {
                                                 <button
                                                     key={page}
                                                     onClick={() => setCurrentPage(page)}
-                                                    className={`px-3 py-1 text-sm font-medium rounded-lg ${
-                                                        currentPage === page
-                                                            ? 'bg-blue-600 text-white'
-                                                            : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-                                                    }`}
+                                                    className={`px-3 py-1 text-sm font-medium rounded-lg ${currentPage === page
+                                                        ? 'bg-blue-600 text-white'
+                                                        : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+                                                        }`}
                                                 >
                                                     {page}
                                                 </button>

@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Bill from '@/models/Bill';
 import { authenticate } from '@/middleware/auth';
+import Appointment from '@/models/Appointment';
 
 // GET all bills
 export async function GET(request) {
@@ -18,7 +19,16 @@ export async function GET(request) {
 
         // Patients can only see their own bills
         if (user.role === 'patient') {
-            query.patientId = user._id;
+            const appointments = await Appointment.find({
+                phone: user.phone
+            }).select('_id');
+
+            const appointmentIds = appointments.map(apt => apt._id);
+
+            query.$or = [
+                { patientId: user._id },
+                { appointmentId: { $in: appointmentIds } }
+            ];
         }
 
         const bills = await Bill.find(query)

@@ -9,6 +9,7 @@ import CollectionChart from '@/components/CollectionChart';
 import CollectionTable from '@/components/CollectionTable';
 import CollectionStats from '@/components/CollectionStats';
 import CreateBillModal from '@/components/CreateBillModal';
+import BillDetailModal from '@/components/BillDetailModal';
 import { api } from '@/lib/api';
 
 export default function CollectionsPage() {
@@ -17,6 +18,8 @@ export default function CollectionsPage() {
     const [bills, setBills] = useState([]);
     const [filteredBills, setFilteredBills] = useState([]);
     const [loading, setLoading] = useState(true);
+    const [showDetailModal, setShowDetailModal] = useState(false);
+    const [selectedBillForDetail, setSelectedBillForDetail] = useState(null);
     const [isModalOpen, setIsModalOpen] = useState(false);
     const [editingBill, setEditingBill] = useState(null);
 
@@ -41,6 +44,15 @@ export default function CollectionsPage() {
         monthCollection: 0
     });
 
+    const clinicInfo = {
+        name: "Dr. Anjali Women Wellness Center",
+        address: "123, Medical Street, City - 123456",
+        phone: "+91 7300843777, +91 9837033107",
+        email: "contact@dranjaligupta.in",
+        doctorName: "Anjali Gupta",
+        doctorQualification: "MBBS, MD (Obstetrics & Gynecology)"
+    };
+
     useEffect(() => {
         checkAuth();
         fetchBills();
@@ -58,10 +70,17 @@ export default function CollectionsPage() {
         }
     }, [filteredBills]);
 
-    const handleEditBill = (billData) => {
-        setEditingBill(billData);
+    const handleViewBillDetail = (bill) => {
+        setSelectedBillForDetail(bill);
+        setShowDetailModal(true);
+    };
+
+    // Handler for editing bill (when clicking edit button)
+    const handleEditBill = (bill) => {
+        setEditingBill(bill);
         setIsModalOpen(true);
     };
+
     const handleSaveBill = async (billData) => {
         try {
             setLoading(true);
@@ -453,7 +472,22 @@ export default function CollectionsPage() {
                 <CollectionChart bills={filteredBills} dateFilter={dateFilter} paymentModeFilter={paymentModeFilter} />
 
                 {/* Detailed Table */}
-                <CollectionTable bills={filteredBills} onEditBill={handleEditBill} />
+                <CollectionTable
+                    bills={filteredBills}
+                    onViewBill={handleViewBillDetail}  // For clicking on bill card
+                    onEditBill={handleEditBill}        // For clicking edit button
+                />
+
+                {showDetailModal && selectedBillForDetail && (
+                    <BillDetailModal
+                        bill={selectedBillForDetail}
+                        clinicInfo={clinicInfo}
+                        onClose={() => {
+                            setShowDetailModal(false);
+                            setSelectedBillForDetail(null);
+                        }}
+                    />
+                )}
 
                 <CreateBillModal
                     isOpen={isModalOpen}
