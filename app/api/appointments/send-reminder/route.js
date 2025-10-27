@@ -5,7 +5,7 @@ import whatsBoostService from '@/lib/whatsboost';
 
 /**
  * API endpoint to check and send appointment reminders
- * This should be called by a cron job every 5-10 minutes
+ * This should be called by a cron job every 30 minutes
  */
 export async function GET(request) {
     try {
@@ -25,10 +25,9 @@ export async function GET(request) {
         // Get current time
         const now = new Date();
 
-        // Calculate time range: 55 minutes to 65 minutes from now
-        // This gives us a 10-minute window to catch appointments
-        const reminderStart = new Date(now.getTime() + 55 * 60 * 1000);
-        const reminderEnd = new Date(now.getTime() + 65 * 60 * 1000);
+        // Calculate time range: 35 minutes to 85 minutes from now
+        const reminderStart = new Date(now.getTime() + 35 * 60 * 1000);
+        const reminderEnd = new Date(now.getTime() + 85 * 60 * 1000);
 
         // Find upcoming appointments in the reminder window that haven't been reminded yet
         const appointmentsToRemind = await Appointment.find({
