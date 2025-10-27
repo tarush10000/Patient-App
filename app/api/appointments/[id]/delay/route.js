@@ -40,8 +40,12 @@ export async function PATCH(request, { params }) {
 
         // Don't send delay messages for emergency appointments
         if (appointment.isEmergency) {
+            // Still save the delay for emergency appointments
+            appointment.delayMinutes = (appointment.delayMinutes || 0) + delayMinutes;
+            await appointment.save();
+            
             return NextResponse.json({
-                message: 'Delay notification skipped for emergency appointment',
+                message: 'Delay recorded (no notification sent for emergency appointment)',
                 appointment
             });
         }
@@ -65,6 +69,9 @@ export async function PATCH(request, { params }) {
         if (oldPeriod === 'PM' && oldHours !== 12) oldTotalMinutes += 12 * 60;
         if (oldPeriod === 'AM' && oldHours === 12) oldTotalMinutes -= 12 * 60;
 
+        // Add any previous delays
+        oldTotalMinutes += (appointment.delayMinutes || 0);
+
         const oldActualHours = Math.floor(oldTotalMinutes / 60) % 24;
         const oldActualMinutes = oldTotalMinutes % 60;
         const oldActualPeriod = oldActualHours >= 12 ? 'PM' : 'AM';
@@ -72,7 +79,7 @@ export async function PATCH(request, { params }) {
         
         const oldActualTime = `${oldDisplayHours}:${oldActualMinutes.toString().padStart(2, '0')} ${oldActualPeriod}`;
 
-        // Calculate NEW time (OLD time + delay)
+        // Calculate NEW time (OLD time + new delay)
         let newTotalMinutes = oldTotalMinutes + delayMinutes;
         const newActualHours = Math.floor(newTotalMinutes / 60) % 24;
         const newActualMinutes = newTotalMinutes % 60;
@@ -80,6 +87,10 @@ export async function PATCH(request, { params }) {
         const newDisplayHours = newActualHours > 12 ? newActualHours - 12 : (newActualHours === 0 ? 12 : newActualHours);
         
         const newActualTime = `${newDisplayHours}:${newActualMinutes.toString().padStart(2, '0')} ${newActualPeriod}`;
+
+        // Update appointment with accumulated delay
+        appointment.delayMinutes = (appointment.delayMinutes || 0) + delayMinutes;
+        await appointment.save();
 
         // Send delay notification via WhatsApp (only for non-emergency appointments)
         const appointmentDateObj = new Date(appointment.appointmentDate);

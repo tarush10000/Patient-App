@@ -156,13 +156,16 @@ export default function StaffDashboardPage() {
         setShowBillModal(true);
     };
 
-    const calculateApproxTime = (slotTime, index) => {
+    const calculateApproxTime = (slotTime, index, appointment) => {
         const [time, period] = slotTime.split(' - ')[0].split(' ');
         const [hours, minutes] = time.split(':').map(Number);
 
         let totalMinutes = hours * 60 + minutes + (index * 15);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+        // Add accumulated delay
+        totalMinutes += (appointment.delayMinutes || 0);
 
         const newHours = Math.floor(totalMinutes / 60) % 24;
         const newMinutes = totalMinutes % 60;
@@ -284,7 +287,7 @@ export default function StaffDashboardPage() {
                                                             <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                         </p>
                                                         <p className="text-sm text-blue-600 font-medium">
-                                                            ⏰ Approx: {calculateApproxTime(timeSlot, index)}
+                                                            Approx: {calculateApproxTime(apt.timeSlot, index, apt)}
                                                         </p>
                                                         {apt.additionalMessage && (
                                                             <p className="text-sm text-gray-600 mt-2">

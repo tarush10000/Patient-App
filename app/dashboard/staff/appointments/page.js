@@ -230,13 +230,16 @@ export default function StaffAppointmentsPage() {
         }
     };
 
-    const calculateActualAppointmentTime = (slot, appointmentIndex) => {
+    const calculateActualAppointmentTime = (slot, appointmentIndex, appointment) => {
         const [startTime, period] = slot.split(' - ')[0].split(' ');
         const [hours, minutes] = startTime.split(':').map(Number);
 
         let totalMinutes = hours * 60 + minutes + (appointmentIndex * 15);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
+
+        // Add accumulated delay
+        totalMinutes += (appointment.delayMinutes || 0);
 
         const actualHours = Math.floor(totalMinutes / 60) % 24;
         const actualMinutes = totalMinutes % 60;
@@ -415,7 +418,7 @@ export default function StaffAppointmentsPage() {
                                                                             #{index + 1}
                                                                         </span>
                                                                         <span className="text-sm font-semibold text-gray-600">
-                                                                            ~{calculateActualAppointmentTime(timeSlot, index)}
+                                                                            Approx: {calculateActualAppointmentTime(slot, index, apt)}
                                                                         </span>
                                                                     </div>
                                                                     <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
