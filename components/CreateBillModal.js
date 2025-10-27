@@ -15,7 +15,7 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
     // Initialize form when editing a bill
     useEffect(() => {
         if (editingBill) {
-            setSelectedPatient(editingBill.patientId);
+            setSelectedPatient(editingBill.appointmentId);
             setBillDate(new Date(editingBill.billDate).toISOString().slice(0, 16));
             setItems(editingBill.items || [{ service: '', amount: '', paymentMethod: 'cash' }]);
             setStatus(editingBill.status || 'unpaid');

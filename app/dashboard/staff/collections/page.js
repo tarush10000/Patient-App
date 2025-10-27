@@ -77,6 +77,7 @@ export default function CollectionsPage() {
 
     // Handler for editing bill (when clicking edit button)
     const handleEditBill = (bill) => {
+        console.log('Editing bill:', bill);
         setEditingBill(bill);
         setIsModalOpen(true);
     };
@@ -311,7 +312,7 @@ export default function CollectionsPage() {
             const items = bill.getParsedItems ? bill.getParsedItems() : parseBillItems(bill.items);
             return {
                 Date: new Date(bill.billDate).toLocaleDateString(),
-                Patient: bill.patientId?.fullName || 'N/A',
+                Patient: bill.appointmentId?.fullName || 'N/A',
                 Amount: bill.totalAmount,
                 Status: bill.status,
                 Items: items.map(item => `${item.service} (${item.paymentMethod})`).join('; ')
