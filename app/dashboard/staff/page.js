@@ -489,16 +489,13 @@ export default function StaffDashboardPage() {
                                                             </button>
                                                         </>
                                                     )}
-
-                                                    {apt.status === 'seen' && (
-                                                        <button
-                                                            onClick={() => handleAddBill(apt)}
-                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
-                                                        >
-                                                            <DollarSign size={16} />
-                                                            Add Bill
-                                                        </button>
-                                                    )}
+                                                    <button
+                                                        onClick={() => handleAddBill(apt)}
+                                                        className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
+                                                    >
+                                                        <DollarSign size={16} />
+                                                        Add Bill
+                                                    </button>
 
                                                     {currentUser?.role === 'admin' && (
                                                         <button

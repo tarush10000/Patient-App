@@ -48,7 +48,7 @@ export default function CollectionsPage() {
         name: "Dr. Anjali Women Wellness Center",
         address: "123, Medical Street, City - 123456",
         phone: "+91 7300843777, +91 9837033107",
-        email: "contact@dranjaligupta.in",
+        email: "anjali.agarwal0@gmail.com",
         doctorName: "Anjali Gupta",
         doctorQualification: "MBBS, MD (Obstetrics & Gynecology)"
     };
