@@ -477,7 +477,7 @@ export default function StaffAppointmentsPage() {
 
                                                         {/* Action Buttons */}
                                                         <div className="flex flex-col gap-2 min-w-[200px]">
-                                                            {apt.status === 'upcoming' && (
+                                                            {apt.status === 'upcoming' && currentUser?.role === 'admin' && (
                                                                 <>
                                                                     <div className="flex gap-2">
                                                                         <button
@@ -485,7 +485,7 @@ export default function StaffAppointmentsPage() {
                                                                             className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
                                                                         >
                                                                             <CheckCircle size={16} />
-                                                                            Seen
+                                                                            Mark Seen
                                                                         </button>
                                                                         <button
                                                                             onClick={() => handleStatusUpdate(apt._id, 'cancelled')}

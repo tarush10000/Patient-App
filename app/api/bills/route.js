@@ -66,7 +66,7 @@ export async function POST(request) {
 
         await connectDB();
 
-        const { patientId, appointmentId, items, totalAmount, status, paidDate } = await request.json();
+        const { patientId, appointmentId, items, totalAmount, status, paidDate, guestPatient } = await request.json();
 
         if (!items || !totalAmount) {
             return NextResponse.json(

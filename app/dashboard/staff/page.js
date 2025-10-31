@@ -323,7 +323,7 @@ export default function StaffDashboardPage() {
 
                                                 {/* Action Buttons */}
                                                 <div className="flex flex-col gap-2 min-w-fit">
-                                                    {apt.status === 'upcoming' && (
+                                                    {apt.status === 'upcoming' && currentUser?.role === 'admin' && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleStatusUpdate(apt._id, 'seen')}
@@ -471,7 +471,7 @@ export default function StaffDashboardPage() {
 
                                                 {/* Action Buttons */}
                                                 <div className="flex flex-col gap-2 min-w-fit">
-                                                    {apt.status === 'upcoming' && (
+                                                    {apt.status === 'upcoming' && currentUser?.role === 'admin' && (
                                                         <>
                                                             <button
                                                                 onClick={() => handleStatusUpdate(apt._id, 'seen')}
