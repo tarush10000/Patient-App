@@ -332,6 +332,11 @@ export default function StaffDashboardPage() {
                                                                 <CheckCircle size={16} />
                                                                 Mark Seen
                                                             </button>
+                                                        </>
+                                                    )}
+
+                                                    {apt.status === 'upcoming' && (
+                                                        <>
                                                             <div className="flex gap-2">
                                                                 <button
                                                                     onClick={() => handleDelayAppointment(apt._id, 15)}

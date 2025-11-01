@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Calendar, Search, Filter, X, CheckCircle, XCircle, Trash2, ClockIcon, DollarSign, Edit, Plus } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
+import { Calendar, CheckCircle, ClockIcon, DollarSign, Edit, Search, Trash2, X, XCircle } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function StaffAppointmentsPage() {
     const router = useRouter();
@@ -495,7 +495,11 @@ export default function StaffAppointmentsPage() {
                                                                             Cancel
                                                                         </button>
                                                                     </div>
+                                                                </>
+                                                            )}
 
+                                                            {apt.status === 'upcoming' && (
+                                                                <>
                                                                     <div className="flex gap-2 text-xs">
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 15)}
