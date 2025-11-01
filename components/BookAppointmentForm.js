@@ -177,7 +177,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 value={formData.fullName}
                                 onChange={handleInputChange}
                                 placeholder="Enter your full name"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                                 required
                             />
                         </div>
@@ -200,7 +200,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                     placeholder="Enter 10-digit mobile number"
                                     pattern="[0-9]{10}"
                                     maxLength="10"
-                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                    className="flex-1 px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-gray-900"
                                     required
                                 />
                             </div>
@@ -332,7 +332,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                 onChange={handleInputChange}
                                 placeholder="Any specific concerns or questions?"
                                 rows="3"
-                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none"
+                                className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none text-gray-900"
                             />
                         </div>
                     </div>
