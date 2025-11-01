@@ -368,7 +368,7 @@ export default function BillDetailModal({ bill, onClose, clinicInfo }) {
             printWindow.focus();
             setTimeout(() => {
                 printWindow.print();
-                printWindow.close();
+                // printWindow.close();
             }, 300);
         } catch (error) {
             console.error('Download error:', error);
