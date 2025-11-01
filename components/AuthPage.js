@@ -286,7 +286,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                                             value={formData.fullName}
                                             onChange={handleInputChange}
                                             placeholder="Enter your full name"
-                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                            className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                                         />
                                     </div>
                                     {errors.fullName && <p className="text-red-600 text-xs mt-1">{errors.fullName}</p>}
@@ -306,7 +306,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                                         onChange={handleInputChange}
                                         placeholder="Enter 10-digit mobile number"
                                         maxLength="10"
-                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                        className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-black"
                                     />
                                 </div>
                                 {errors.phone && <p className="text-red-600 text-xs mt-1">{errors.phone}</p>}
