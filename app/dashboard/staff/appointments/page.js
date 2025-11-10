@@ -6,6 +6,8 @@ import { api } from '@/lib/api';
 import { Calendar, CheckCircle, ClockIcon, DollarSign, Edit, Search, Trash2, X, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function StaffAppointmentsPage() {
     const router = useRouter();
@@ -14,6 +16,13 @@ export default function StaffAppointmentsPage() {
     const [filteredAppointments, setFilteredAppointments] = useState([]);
     const [groupedAppointments, setGroupedAppointments] = useState({});
     const [loading, setLoading] = useState(true);
+    
+    // Track loading state per appointment ID
+    const [loadingStates, setLoadingStates] = useState({
+        seen: {}, // { appointmentId: true/false }
+        cancel: {}, // { appointmentId: true/false }
+        delay: {} // { appointmentId: true/false }
+    });
 
     // Filters
     const [searchTerm, setSearchTerm] = useState('');
@@ -68,9 +77,9 @@ export default function StaffAppointmentsPage() {
             setShowEditModal(false);
             setEditingAppointment(null);
             fetchAllAppointments();
-            alert('✅ Appointment updated successfully!');
+            toast.success('✅ Appointment updated successfully!');
         } catch (error) {
-            alert('Failed to update appointment: ' + error.message);
+            toast.error('Failed to update appointment: ' + error.message);
         }
     };
 
@@ -89,19 +98,16 @@ export default function StaffAppointmentsPage() {
         try {
             const response = await api.getAppointments();
 
-            // Helper function to convert time slot to minutes for sorting
-
-
             const sorted = (response.appointments || []).sort((a, b) => {
                 const dateCompare = new Date(b.appointmentDate) - new Date(a.appointmentDate);
                 if (dateCompare !== 0) return dateCompare;
 
-                // If same date, sort by time slot using minutes
                 return getSlotMinutes(a.timeSlot) - getSlotMinutes(b.timeSlot);
             });
             setAppointments(sorted);
         } catch (error) {
             console.error('Error fetching appointments:', error);
+            toast.error('Failed to fetch appointments');
         } finally {
             setLoading(false);
         }
@@ -164,7 +170,6 @@ export default function StaffAppointmentsPage() {
             const dateCompare = new Date(a.appointmentDate) - new Date(b.appointmentDate);
             if (dateCompare !== 0) return dateCompare;
 
-            // Sort by time slot using minutes
             return getSlotMinutes(a.timeSlot) - getSlotMinutes(b.timeSlot);
         });
 
@@ -196,20 +201,38 @@ export default function StaffAppointmentsPage() {
     };
 
     const handleStatusUpdate = async (appointmentId, newStatus) => {
+        const loadingKey = newStatus === 'seen' ? 'seen' : 'cancel';
+        
         try {
+            // Set loading state for this specific appointment
+            setLoadingStates(prev => ({
+                ...prev,
+                [loadingKey]: { ...prev[loadingKey], [appointmentId]: true }
+            }));
+
             await api.updateAppointment(appointmentId, { status: newStatus });
+            
             if (newStatus === 'seen') {
-                alert('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
+                toast.success('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
+            } else if (newStatus === 'cancelled') {
+                toast.success('✅ Appointment cancelled successfully.');
             }
+            
             fetchAllAppointments();
         } catch (error) {
-            alert('Failed to update status: ' + error.message);
+            toast.error('Failed to update status: ' + error.message);
+        } finally {
+            // Clear loading state for this specific appointment
+            setLoadingStates(prev => ({
+                ...prev,
+                [loadingKey]: { ...prev[loadingKey], [appointmentId]: false }
+            }));
         }
     };
 
     const handleDeleteAppointment = async (appointmentId) => {
         if (!currentUser || currentUser.role !== 'admin') {
-            alert('Only admins can delete appointments');
+            toast.error('Only admins can delete appointments');
             return;
         }
 
@@ -217,9 +240,10 @@ export default function StaffAppointmentsPage() {
 
         try {
             await api.deleteAppointment(appointmentId);
+            toast.success('✅ Appointment deleted successfully');
             fetchAllAppointments();
         } catch (error) {
-            alert('Failed to delete appointment: ' + error.message);
+            toast.error('Failed to delete appointment: ' + error.message);
         }
     };
 
@@ -227,11 +251,23 @@ export default function StaffAppointmentsPage() {
         if (!confirm(`Delay by ${minutes} minutes? Patient will be notified via WhatsApp.`)) return;
 
         try {
+            // Set loading state for this specific appointment
+            setLoadingStates(prev => ({
+                ...prev,
+                delay: { ...prev.delay, [appointmentId]: true }
+            }));
+
             await api.delayAppointment(appointmentId, minutes);
             fetchAllAppointments();
-            alert(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
+            toast.success(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
         } catch (error) {
-            alert('Failed to delay appointment: ' + error.message);
+            toast.error('Failed to delay appointment: ' + error.message);
+        } finally {
+            // Clear loading state for this specific appointment
+            setLoadingStates(prev => ({
+                ...prev,
+                delay: { ...prev.delay, [appointmentId]: false }
+            }));
         }
     };
 
@@ -270,7 +306,6 @@ export default function StaffAppointmentsPage() {
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
 
-        // Add accumulated delay
         totalMinutes += (appointment.delayMinutes || 0);
 
         const actualHours = Math.floor(totalMinutes / 60) % 24;
@@ -292,6 +327,18 @@ export default function StaffAppointmentsPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             <Header />
+            <ToastContainer 
+                position="top-right"
+                autoClose={3000}
+                hideProgressBar={false}
+                newestOnTop={false}
+                closeOnClick
+                rtl={false}
+                pauseOnFocusLoss
+                draggable
+                pauseOnHover
+                theme="light"
+            />
 
             <main className="max-w-6xl mx-auto p-4 pb-24">
                 <div className="mb-6">
@@ -482,17 +529,19 @@ export default function StaffAppointmentsPage() {
                                                                     <div className="flex gap-2">
                                                                         <button
                                                                             onClick={() => handleStatusUpdate(apt._id, 'seen')}
-                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                                            disabled={loadingStates.seen[apt._id]}
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <CheckCircle size={16} />
-                                                                            Mark Seen
+                                                                            {loadingStates.seen[apt._id] ? 'Processing...' : 'Mark Seen'}
                                                                         </button>
                                                                         <button
                                                                             onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
-                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                                            disabled={loadingStates.cancel[apt._id]}
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <XCircle size={16} />
-                                                                            Cancel
+                                                                            {loadingStates.cancel[apt._id] ? 'Processing...' : 'Cancel'}
                                                                         </button>
                                                                     </div>
                                                                 </>
@@ -503,24 +552,27 @@ export default function StaffAppointmentsPage() {
                                                                     <div className="flex gap-2 text-xs">
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 15)}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                            disabled={loadingStates.delay[apt._id]}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
-                                                                            +15m
+                                                                            {loadingStates.delay[apt._id] ? '...' : '+15m'}
                                                                         </button>
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 30)}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                            disabled={loadingStates.delay[apt._id]}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
-                                                                            +30m
+                                                                            {loadingStates.delay[apt._id] ? '...' : '+30m'}
                                                                         </button>
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 60)}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200"
+                                                                            disabled={loadingStates.delay[apt._id]}
+                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
-                                                                            +1hr
+                                                                            {loadingStates.delay[apt._id] ? '...' : '+1hr'}
                                                                         </button>
                                                                     </div>
 
@@ -905,19 +957,17 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
     };
 
     const consultationTypes = [
-        { value: 'general-consultation', label: 'General Consultation' },
-        { value: 'follow-up', label: 'Follow-up' },
-        { value: 'gynecology', label: 'Gynecology' },
-        { value: 'pregnancy-care', label: 'Pregnancy Care' },
-        { value: 'menstrual-issues', label: 'Menstrual Issues' },
-        { value: 'fertility', label: 'Fertility Consultation' },
-        { value: 'menopause', label: 'Menopause Care' },
-        { value: 'other', label: 'Other' }
+        { value: 'routine-checkup', label: 'Routine Checkup' },
+        { value: 'prenatal-care', label: 'Prenatal Care' },
+        { value: 'postnatal-care', label: 'Postnatal Care' },
+        { value: 'gynecological-exam', label: 'Gynecological Exam' },
+        { value: 'consultation', label: 'Consultation' },
+        { value: 'follow-up', label: 'Follow-up' }
     ];
 
     return (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+        <div className="fixed inset-0 backdrop-blur-sm bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto border border-gray-200 shadow-lg">
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-xl font-bold text-gray-800">Edit Appointment</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
@@ -935,7 +985,7 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                             type="text"
                             value={formData.fullName}
                             onChange={(e) => setFormData({ ...formData, fullName: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             required
                         />
                     </div>
@@ -946,14 +996,14 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                             Phone Number *
                         </label>
                         <div className="flex gap-2">
-                            <span className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg">+91</span>
+                            <span className="px-4 py-2 bg-gray-100 border border-gray-300 rounded-lg text-gray-900">+91</span>
                             <input
                                 type="tel"
                                 value={formData.phone}
                                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                                 pattern="[6-9][0-9]{9}"
                                 maxLength="10"
-                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                                 required
                             />
                         </div>
@@ -969,7 +1019,7 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                             value={formData.appointmentDate}
                             onChange={(e) => setFormData({ ...formData, appointmentDate: e.target.value, timeSlot: '' })}
                             min={new Date().toISOString().split('T')[0]}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             required
                         />
                     </div>
@@ -982,7 +1032,7 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                         <select
                             value={formData.timeSlot}
                             onChange={(e) => setFormData({ ...formData, timeSlot: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             required
                         >
                             <option value="">Select time slot</option>
@@ -1002,7 +1052,7 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                         <select
                             value={formData.consultationType}
                             onChange={(e) => setFormData({ ...formData, consultationType: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             required
                         >
                             <option value="">Select consultation type</option>
@@ -1020,7 +1070,7 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                         <textarea
                             value={formData.additionalMessage}
                             onChange={(e) => setFormData({ ...formData, additionalMessage: e.target.value })}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-gray-900"
                             rows="3"
                         />
                     </div>
@@ -1029,14 +1079,14 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                         <button
                             type="button"
                             onClick={onClose}
-                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition"
+                            className="flex-1 px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition text-black"
                         >
                             Cancel
                         </button>
                         <button
                             type="submit"
                             disabled={loading}
-                            className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
+                            className="flex-1 px-4 py-2 bg-blue-600 rounded-lg hover:bg-blue-700 transition disabled:opacity-50 text-gray-900"
                         >
                             {loading ? 'Saving...' : 'Save Changes'}
                         </button>
