@@ -49,11 +49,11 @@ export async function GET(request) {
         // Define all possible time slots with capacity
         const allTimeSlots = [
             { time: '10:30 AM - 11:30 AM', capacity: 4 },
-            { time: '11:30 AM - 12:30 PM', capacity: 4 },
-            { time: '12:30 PM - 1:30 PM', capacity: 4 },
-            { time: '1:30 PM - 2:00 PM', capacity: 2 },
-            { time: '4:30 PM - 5:30 PM', capacity: 4 },
-            { time: '5:30 PM - 6:00 PM', capacity: 2 }
+            { time: '11:30 AM - 12:30 PM', capacity: 6 },
+            { time: '12:30 PM - 1:30 PM', capacity: 6 },
+            { time: '1:30 PM - 2:00 PM', capacity: 3 },
+            { time: '4:30 PM - 5:30 PM', capacity: 6 },
+            { time: '5:30 PM - 6:00 PM', capacity: 3 }
         ];
 
         // Get booked appointments for this date (only count upcoming and seen)
