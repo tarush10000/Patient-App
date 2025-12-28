@@ -1,9 +1,9 @@
-import { redirect } from 'next/navigation';
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 
-export default function HomePage() {
+export default async function HomePage() {
   // Check if user is authenticated
-  const cookieStore = cookies();
+  const cookieStore = await cookies();
   const token = cookieStore.get('authToken');
 
   if (token) {

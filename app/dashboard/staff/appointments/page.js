@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
-import { Calendar, CheckCircle, ClockIcon, DollarSign, Edit, Search, Trash2, X, XCircle } from 'lucide-react';
+import { Calendar, CheckCircle, ClockIcon, DollarSign, Edit, Search, Trash2, X, XCircle, Users, User, ChevronDown, ChevronUp } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
@@ -16,7 +16,7 @@ export default function StaffAppointmentsPage() {
     const [filteredAppointments, setFilteredAppointments] = useState([]);
     const [groupedAppointments, setGroupedAppointments] = useState({});
     const [loading, setLoading] = useState(true);
-    
+
     // Track loading state per appointment ID
     const [loadingStates, setLoadingStates] = useState({
         seen: {}, // { appointmentId: true/false }
@@ -202,7 +202,7 @@ export default function StaffAppointmentsPage() {
 
     const handleStatusUpdate = async (appointmentId, newStatus) => {
         const loadingKey = newStatus === 'seen' ? 'seen' : 'cancel';
-        
+
         try {
             // Set loading state for this specific appointment
             setLoadingStates(prev => ({
@@ -211,13 +211,13 @@ export default function StaffAppointmentsPage() {
             }));
 
             await api.updateAppointment(appointmentId, { status: newStatus });
-            
+
             if (newStatus === 'seen') {
                 toast.success('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
             } else if (newStatus === 'cancelled') {
                 toast.success('✅ Appointment cancelled successfully.');
             }
-            
+
             fetchAllAppointments();
         } catch (error) {
             toast.error('Failed to update status: ' + error.message);
@@ -327,7 +327,7 @@ export default function StaffAppointmentsPage() {
     return (
         <div className="min-h-screen bg-gray-50">
             <Header />
-            <ToastContainer 
+            <ToastContainer
                 position="top-right"
                 autoClose={3000}
                 hideProgressBar={false}
@@ -469,38 +469,43 @@ export default function StaffAppointmentsPage() {
 
                                 {/* Time Slots for this Date */}
                                 {Object.entries(slotsData).map(([timeSlot, appointments]) => (
-                                    <div key={timeSlot} className="bg-white rounded-xl shadow-md overflow-hidden">
-                                        {/* Time Slot Header */}
-                                        <div className="bg-gradient-to-r from-blue-600 to-blue-700 text-white px-5 py-3">
-                                            <div className="flex justify-between items-center">
-                                                <div className="flex items-center gap-3">
-                                                    <ClockIcon size={20} />
-                                                    <h4 className="font-bold text-lg">{timeSlot}</h4>
-                                                </div>
-                                                <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-gray-500">
-                                                    {appointments.length} {appointments.length === 1 ? 'Patient' : 'Patients'}
-                                                </span>
-                                            </div>
-                                        </div>
-
-                                        {/* Appointments in this slot */}
+                                    <CollapsibleSection
+                                        key={timeSlot}
+                                        title={timeSlot}
+                                        count={appointments.length}
+                                        icon={<ClockIcon size={20} />}
+                                        defaultOpen={true}
+                                        colorClass="from-blue-600 to-blue-700"
+                                    >
                                         <div className="divide-y divide-gray-200">
                                             {appointments.map((apt, index) => (
-                                                <div key={apt._id} className="p-5 hover:bg-gray-50 transition">
+                                                <div key={apt._id} className={`p-5 transition ${apt.consultationType === 'emergency' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
                                                     <div className="flex flex-col lg:flex-row justify-between gap-4">
                                                         {/* Appointment Details */}
                                                         <div className="flex-1">
                                                             <div className="flex items-start justify-between mb-3">
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-1">
-                                                                        <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">
+                                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${apt.consultationType === 'emergency' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
                                                                             #{index + 1}
                                                                         </span>
                                                                         <span className="text-sm font-semibold text-gray-600">
                                                                             Approx: {calculateActualAppointmentTime(timeSlot, index, apt)}
                                                                         </span>
                                                                     </div>
-                                                                    <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
+                                                                    <div className="flex items-center gap-2">
+                                                                        <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
+                                                                        {/* Booked By Indicator */}
+                                                                        {apt.createdBy === apt.patientId?._id ? (
+                                                                            <span title="Booked by Patient" className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200 flex items-center gap-1">
+                                                                                <User size={12} /> Patient
+                                                                            </span>
+                                                                        ) : (
+                                                                            <span title="Booked by Staff" className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
+                                                                                <Users size={12} /> Staff
+                                                                            </span>
+                                                                        )}
+                                                                    </div>
                                                                     <p className="text-sm text-gray-600">📞 {apt.phone}</p>
                                                                 </div>
                                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(apt.status)}`}>
@@ -613,7 +618,7 @@ export default function StaffAppointmentsPage() {
                                                 </div>
                                             ))}
                                         </div>
-                                    </div>
+                                    </CollapsibleSection>
                                 ))}
                             </div>
                         ))}
@@ -1093,6 +1098,36 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
                     </div>
                 </form>
             </div>
+        </div>
+    );
+}
+
+function CollapsibleSection({ title, count, icon, children, defaultOpen = false, colorClass = "from-blue-600 to-blue-700" }) {
+    const [isOpen, setIsOpen] = useState(defaultOpen);
+
+    return (
+        <div className="bg-white rounded-xl shadow-md overflow-hidden">
+            <button
+                onClick={() => setIsOpen(!isOpen)}
+                className={`w-full bg-gradient-to-r ${colorClass} text-white px-5 py-3 flex justify-between items-center transition hover:opacity-90`}
+            >
+                <div className="flex items-center gap-3">
+                    {icon}
+                    <h4 className="font-bold text-lg">{title}</h4>
+                </div>
+                <div className="flex items-center gap-3">
+                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-white">
+                        {count} {count === 1 ? 'patient' : 'patients'}
+                    </span>
+                    {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                </div>
+            </button>
+
+            {isOpen && (
+                <div>
+                    {children}
+                </div>
+            )}
         </div>
     );
 }
