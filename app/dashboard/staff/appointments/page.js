@@ -3,7 +3,7 @@
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
-import { Calendar, CheckCircle, ClockIcon, DollarSign, Edit, Search, Trash2, X, XCircle, Users, User, ChevronDown, ChevronUp } from 'lucide-react';
+import { Calendar, CheckCircle, ChevronDown, ChevronUp, ClockIcon, DollarSign, Edit, Search, Trash2, User, Users, X, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { ToastContainer, toast } from 'react-toastify';
@@ -479,14 +479,14 @@ export default function StaffAppointmentsPage() {
                                     >
                                         <div className="divide-y divide-gray-200">
                                             {appointments.map((apt, index) => (
-                                                <div key={apt._id} className={`p-5 transition ${apt.consultationType === 'emergency' ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                                                <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-orange-500' : 'hover:bg-gray-50'}`}>
                                                     <div className="flex flex-col lg:flex-row justify-between gap-4">
                                                         {/* Appointment Details */}
                                                         <div className="flex-1">
                                                             <div className="flex items-start justify-between mb-3">
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-1">
-                                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${apt.consultationType === 'emergency' ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${apt.isEmergency ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
                                                                             #{index + 1}
                                                                         </span>
                                                                         <span className="text-sm font-semibold text-gray-600">
@@ -496,13 +496,13 @@ export default function StaffAppointmentsPage() {
                                                                     <div className="flex items-center gap-2">
                                                                         <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
                                                                         {/* Booked By Indicator */}
-                                                                        {apt.createdBy === apt.patientId?._id ? (
+                                                                        {apt.createdBy?.role === 'patient' ? (
                                                                             <span title="Booked by Patient" className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200 flex items-center gap-1">
                                                                                 <User size={12} /> Patient
                                                                             </span>
                                                                         ) : (
-                                                                            <span title="Booked by Staff" className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
-                                                                                <Users size={12} /> Staff
+                                                                            <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
+                                                                                <Users size={12} /> {apt.createdBy?.role === 'admin' ? 'Admin' : 'Staff'}
                                                                             </span>
                                                                         )}
                                                                     </div>

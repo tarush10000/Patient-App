@@ -281,24 +281,24 @@ export default function StaffDashboardPage() {
                             >
                                 <div className="divide-y divide-gray-200">
                                     {appointments.map((apt, index) => (
-                                        <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-red-50 hover:bg-red-100' : 'hover:bg-gray-50'}`}>
+                                        <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-orange-500' : 'hover:bg-gray-50'}`}>
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-2">
-                                                        <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${apt.isEmergency ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                        <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${apt.isEmergency ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
                                                             {apt.isEmergency ? <AlertTriangle size={16} /> : index + 1}
                                                         </span>
                                                         <div>
                                                             <div className="flex items-center gap-2">
                                                                 <h5 className="font-bold text-gray-800 text-lg">{apt.fullName}</h5>
                                                                 {/* Booked By Indicator */}
-                                                                {apt.createdBy === apt.patientId?._id ? (
+                                                                {apt.createdBy?.role === 'patient' ? (
                                                                     <span title="Booked by Patient" className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200 flex items-center gap-1">
                                                                         <User size={12} /> Patient
                                                                     </span>
                                                                 ) : (
-                                                                    <span title="Booked by Staff" className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
-                                                                        <Users size={12} /> Staff
+                                                                    <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
+                                                                        <Users size={12} /> {apt.createdBy?.role === 'admin' ? 'Admin' : 'Staff'}
                                                                     </span>
                                                                 )}
                                                             </div>
@@ -311,8 +311,8 @@ export default function StaffDashboardPage() {
                                                             <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                         </p>
                                                         {apt.isEmergency ? (
-                                                            <p className="text-sm text-red-600 font-medium">
-                                                                🚨 Emergency - {apt.timeSlot}
+                                                            <p className="text-sm text-orange-600 font-bold flex items-center gap-1">
+                                                                <AlertTriangle size={14} /> Emergency - {apt.timeSlot}
                                                             </p>
                                                         ) : (
                                                             <p className="text-sm text-blue-600 font-medium">

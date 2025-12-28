@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
-import { authenticate } from '@/middleware/auth';
 import connectDB from '@/lib/mongodb';
-import Appointment from '@/models/Appointment';
 import whatsBoostService from '@/lib/whatsboost';
+import { authenticate } from '@/middleware/auth';
+import Appointment from '@/models/Appointment';
+import { NextResponse } from 'next/server';
 
 // GET all appointments for current user
 export async function GET(request) {
@@ -28,6 +28,7 @@ export async function GET(request) {
 
         const appointments = await Appointment.find(query)
             .populate('patientId', 'fullName phone email')
+            .populate('createdBy', 'fullName role')
             .sort({ appointmentDate: -1 });
 
         return NextResponse.json({ appointments });
@@ -137,7 +138,7 @@ export async function POST(request) {
 
         // Create appointment
         const appointment = await Appointment.create({
-            patientId: user._id,
+            patientId: user.role === 'patient' ? user._id : (appointmentData.patientId || null),
             fullName,
             phone,
             appointmentDate: new Date(appointmentDate),
@@ -145,6 +146,8 @@ export async function POST(request) {
             consultationType,
             additionalMessage: additionalMessage || '',
             status: 'upcoming',
+            isEmergency: appointmentData.isEmergency || false,
+            isGuest: user.role !== 'patient' && !appointmentData.patientId,
             createdBy: user._id
         });
 
@@ -162,7 +165,7 @@ export async function POST(request) {
             // Formula: Actual Time = Slot Start Time + (15 × existing appointments count)
             const [slotStartTime, slotPeriod] = timeSlot.split(' - ')[0].split(' ');
             const [startHours, startMinutes] = slotStartTime.split(':').map(Number);
-            
+
             let totalMinutes = startHours * 60 + startMinutes + (existingCount * 15);
             if (slotPeriod === 'PM' && startHours !== 12) totalMinutes += 12 * 60;
             if (slotPeriod === 'AM' && startHours === 12) totalMinutes -= 12 * 60;
@@ -171,7 +174,7 @@ export async function POST(request) {
             const actualMinutes = totalMinutes % 60;
             const actualPeriod = actualHours >= 12 ? 'PM' : 'AM';
             const displayHours = actualHours > 12 ? actualHours - 12 : (actualHours === 0 ? 12 : actualHours);
-            
+
             const actualAppointmentTime = `${displayHours}:${actualMinutes.toString().padStart(2, '0')} ${actualPeriod}`;
 
             await whatsBoostService.sendAppointmentConfirmation(phone, {

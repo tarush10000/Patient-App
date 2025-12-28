@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Appointment from '@/models/Appointment';
 import whatsBoostService from '@/lib/whatsboost';
+import Appointment from '@/models/Appointment';
+import { NextResponse } from 'next/server';
 
 export async function POST(request) {
     try {
@@ -99,7 +99,6 @@ export async function POST(request) {
             additionalMessage: appointmentData.additionalMessage || '',
             isGuest: true,
             status: 'upcoming'
-            // patientId is NOT included - it will be null/undefined
         });
 
         // Send appointment confirmation message via WhatsBoost
