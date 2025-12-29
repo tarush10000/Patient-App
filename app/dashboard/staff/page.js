@@ -5,7 +5,7 @@ import EmergencyAppointmentModal from '@/components/EmergencyAppointmentModal';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
-import { AlertTriangle, Calendar, CheckCircle, Clock, ClockIcon, DollarSign, Edit, Plus, Trash2, Users, X, XCircle } from 'lucide-react';
+import { AlertTriangle, Calendar, CheckCircle, Clock, ClockIcon, DollarSign, Edit, Plus, Trash2, Users, X, XCircle, User, ChevronUp, ChevronDown } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
