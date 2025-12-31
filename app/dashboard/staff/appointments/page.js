@@ -3,6 +3,7 @@
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
+import { getSlotGap } from '@/lib/slotConfig';
 import { Calendar, CheckCircle, ChevronDown, ChevronUp, ClockIcon, DollarSign, Edit, Search, Trash2, User, Users, X, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
@@ -302,7 +303,9 @@ export default function StaffAppointmentsPage() {
         const [startTime, period] = slot.split(' - ')[0].split(' ');
         const [hours, minutes] = startTime.split(':').map(Number);
 
-        let totalMinutes = hours * 60 + minutes + (appointmentIndex * 15);
+        // Use dynamic slot gap based on slot capacity and duration
+        const slotGap = getSlotGap(slot);
+        let totalMinutes = hours * 60 + minutes + (appointmentIndex * slotGap);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
 

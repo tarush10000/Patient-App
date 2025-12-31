@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
+import { TIME_SLOTS } from '@/lib/slotConfig';
 import Appointment from '@/models/Appointment';
-import BlockedSlot from '@/models/BlockedSlot';
 import BlockedDay from '@/models/BlockedDay';
+import BlockedSlot from '@/models/BlockedSlot';
+import { NextResponse } from 'next/server';
 
 export async function GET(request) {
     try {
@@ -46,15 +47,8 @@ export async function GET(request) {
             });
         }
 
-        // Define all possible time slots with capacity
-        const allTimeSlots = [
-            { time: '10:30 AM - 11:30 AM', capacity: 4 },
-            { time: '11:30 AM - 12:30 PM', capacity: 6 },
-            { time: '12:30 PM - 1:30 PM', capacity: 6 },
-            { time: '1:30 PM - 2:00 PM', capacity: 3 },
-            { time: '4:30 PM - 5:30 PM', capacity: 6 },
-            { time: '5:30 PM - 6:00 PM', capacity: 3 }
-        ];
+        // Get all time slots from centralized config
+        const allTimeSlots = TIME_SLOTS;
 
         // Get booked appointments for this date (only count upcoming and seen)
         const bookedAppointments = await Appointment.find({

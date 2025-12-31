@@ -1,8 +1,9 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { getSlotGap } from '@/lib/slotConfig';
+import { Calendar, ChevronLeft, FileText, Phone, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { Calendar, Clock, User, Phone, FileText, ChevronLeft } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function GuestAppointmentPage() {
     const router = useRouter();
@@ -64,14 +65,14 @@ export default function GuestAppointmentPage() {
 
     const handleInputChange = (e) => {
         const { name, value } = e.target;
-        
+
         // Reset time slot when date changes
         if (name === 'appointmentDate') {
             setFormData(prev => ({ ...prev, [name]: value, timeSlot: '' }));
         } else {
             setFormData(prev => ({ ...prev, [name]: value }));
         }
-        
+
         setErrors(prev => ({ ...prev, [name]: '', general: '' }));
     };
 
@@ -79,7 +80,9 @@ export default function GuestAppointmentPage() {
         const [time, period] = slotTime.split(' - ')[0].split(' ');
         const [hours, minutes] = time.split(':').map(Number);
 
-        let totalMinutes = hours * 60 + minutes + (bookingsCount * 15);
+        // Use dynamic slot gap based on slot capacity and duration
+        const slotGap = getSlotGap(slotTime);
+        let totalMinutes = hours * 60 + minutes + (bookingsCount * slotGap);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
 
@@ -107,7 +110,7 @@ export default function GuestAppointmentPage() {
         setErrors({});
 
         // Validation
-        if (!formData.fullName || !formData.phone || !formData.appointmentDate || 
+        if (!formData.fullName || !formData.phone || !formData.appointmentDate ||
             !formData.timeSlot || !formData.consultationType) {
             setErrors({
                 general: 'Please fill in all required fields'
@@ -129,7 +132,7 @@ export default function GuestAppointmentPage() {
             if (!response.ok) {
                 throw new Error(data.error || 'Failed to book appointment');
             }
-            
+
             router.push('/');
 
         } catch (error) {
@@ -251,23 +254,21 @@ export default function GuestAppointmentPage() {
                                                 type="button"
                                                 onClick={() => slot.status === 'available' && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
                                                 disabled={slot.status !== 'available'}
-                                                className={`p-4 rounded-lg border-2 text-sm font-medium transition ${
-                                                    formData.timeSlot === slot.time
+                                                className={`p-4 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
                                                         ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md'
                                                         : slot.status === 'available'
                                                             ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
                                                             : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
-                                                }`}
+                                                    }`}
                                             >
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="font-semibold">{slot.time.split(' - ')[0]}</span>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${
-                                                        slot.status === 'available'
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${slot.status === 'available'
                                                             ? 'bg-green-100 text-green-800'
                                                             : slot.status === 'blocked'
                                                                 ? 'bg-gray-200 text-gray-700'
                                                                 : 'bg-red-100 text-red-800'
-                                                    }`}>
+                                                        }`}>
                                                         {slot.available}/{slot.capacity}
                                                     </span>
                                                 </div>
@@ -344,7 +345,7 @@ export default function GuestAppointmentPage() {
                         </button>
 
                         <p className="text-sm text-gray-600 mt-4 text-center">
-                            Note: As a guest, you won't be able to modify this appointment later. 
+                            Note: As a guest, you won't be able to modify this appointment later.
                             Consider <a href="/" className="text-blue-600 hover:underline">creating an account</a> for full access.
                         </p>
                     </form>

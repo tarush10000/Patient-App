@@ -5,7 +5,8 @@ import EmergencyAppointmentModal from '@/components/EmergencyAppointmentModal';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
-import { AlertTriangle, Calendar, CheckCircle, Clock, ClockIcon, DollarSign, Edit, Plus, Trash2, Users, X, XCircle, User, ChevronUp, ChevronDown } from 'lucide-react';
+import { getSlotGap } from '@/lib/slotConfig';
+import { AlertTriangle, Calendar, CheckCircle, ChevronDown, ChevronUp, Clock, ClockIcon, DollarSign, Edit, Plus, Trash2, User, Users, X, XCircle } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -179,7 +180,9 @@ export default function StaffDashboardPage() {
         const [time, period] = slotTime.split(' - ')[0].split(' ');
         const [hours, minutes] = time.split(':').map(Number);
 
-        let totalMinutes = hours * 60 + minutes + (index * 15);
+        // Use dynamic slot gap based on slot capacity and duration
+        const slotGap = getSlotGap(slotTime);
+        let totalMinutes = hours * 60 + minutes + (index * slotGap);
         if (period === 'PM' && hours !== 12) totalMinutes += 12 * 60;
         if (period === 'AM' && hours === 12) totalMinutes -= 12 * 60;
 

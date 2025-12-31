@@ -1,4 +1,5 @@
 import connectDB from '@/lib/mongodb';
+import { calculateAppointmentTime, getSlotCapacity } from '@/lib/slotConfig';
 import whatsBoostService from '@/lib/whatsboost';
 import { authenticate } from '@/middleware/auth';
 import Appointment from '@/models/Appointment';
@@ -110,17 +111,8 @@ export async function POST(request) {
             }
         }
 
-        // Define slot capacities
-        const slotCapacities = {
-            '10:30 AM - 11:30 AM': 4,
-            '11:30 AM - 12:30 PM': 4,
-            '12:30 PM - 1:30 PM': 4,
-            '1:30 PM - 2:00 PM': 2,
-            '4:30 PM - 5:30 PM': 4,
-            '5:30 PM - 6:00 PM': 2
-        };
-
-        const capacity = slotCapacities[timeSlot] || 1;
+        // Get slot capacity from centralized config
+        const capacity = getSlotCapacity(timeSlot);
 
         // Count existing appointments for this slot
         const existingCount = await Appointment.countDocuments({
@@ -162,20 +154,8 @@ export async function POST(request) {
             });
 
             // Calculate actual appointment time based on existing appointments
-            // Formula: Actual Time = Slot Start Time + (15 × existing appointments count)
-            const [slotStartTime, slotPeriod] = timeSlot.split(' - ')[0].split(' ');
-            const [startHours, startMinutes] = slotStartTime.split(':').map(Number);
-
-            let totalMinutes = startHours * 60 + startMinutes + (existingCount * 15);
-            if (slotPeriod === 'PM' && startHours !== 12) totalMinutes += 12 * 60;
-            if (slotPeriod === 'AM' && startHours === 12) totalMinutes -= 12 * 60;
-
-            const actualHours = Math.floor(totalMinutes / 60) % 24;
-            const actualMinutes = totalMinutes % 60;
-            const actualPeriod = actualHours >= 12 ? 'PM' : 'AM';
-            const displayHours = actualHours > 12 ? actualHours - 12 : (actualHours === 0 ? 12 : actualHours);
-
-            const actualAppointmentTime = `${displayHours}:${actualMinutes.toString().padStart(2, '0')} ${actualPeriod}`;
+            // Uses dynamic slot gap calculation: slot duration / slot capacity
+            const actualAppointmentTime = calculateAppointmentTime(timeSlot, existingCount);
 
             await whatsBoostService.sendAppointmentConfirmation(phone, {
                 patientName: fullName,

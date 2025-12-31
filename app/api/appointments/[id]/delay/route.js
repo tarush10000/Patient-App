@@ -1,8 +1,9 @@
-import { NextResponse } from 'next/server';
-import { authenticate } from '@/middleware/auth';
 import connectDB from '@/lib/mongodb';
-import Appointment from '@/models/Appointment';
+import { getSlotGap } from '@/lib/slotConfig';
 import whatsBoostService from '@/lib/whatsboost';
+import { authenticate } from '@/middleware/auth';
+import Appointment from '@/models/Appointment';
+import { NextResponse } from 'next/server';
 
 export async function PATCH(request, { params }) {
     try {
@@ -43,7 +44,7 @@ export async function PATCH(request, { params }) {
             // Still save the delay for emergency appointments
             appointment.delayMinutes = (appointment.delayMinutes || 0) + delayMinutes;
             await appointment.save();
-            
+
             return NextResponse.json({
                 message: 'Delay recorded (no notification sent for emergency appointment)',
                 appointment
@@ -65,7 +66,9 @@ export async function PATCH(request, { params }) {
         const [oldStartTime, oldPeriod] = oldTimeSlot.split(' - ')[0].split(' ');
         const [oldHours, oldMinutes] = oldStartTime.split(':').map(Number);
 
-        let oldTotalMinutes = oldHours * 60 + oldMinutes + (appointmentsBefore * 15);
+        // Use dynamic slot gap based on slot capacity and duration
+        const slotGap = getSlotGap(oldTimeSlot);
+        let oldTotalMinutes = oldHours * 60 + oldMinutes + (appointmentsBefore * slotGap);
         if (oldPeriod === 'PM' && oldHours !== 12) oldTotalMinutes += 12 * 60;
         if (oldPeriod === 'AM' && oldHours === 12) oldTotalMinutes -= 12 * 60;
 
@@ -76,7 +79,7 @@ export async function PATCH(request, { params }) {
         const oldActualMinutes = oldTotalMinutes % 60;
         const oldActualPeriod = oldActualHours >= 12 ? 'PM' : 'AM';
         const oldDisplayHours = oldActualHours > 12 ? oldActualHours - 12 : (oldActualHours === 0 ? 12 : oldActualHours);
-        
+
         const oldActualTime = `${oldDisplayHours}:${oldActualMinutes.toString().padStart(2, '0')} ${oldActualPeriod}`;
 
         // Calculate NEW time (OLD time + new delay)
@@ -85,7 +88,7 @@ export async function PATCH(request, { params }) {
         const newActualMinutes = newTotalMinutes % 60;
         const newActualPeriod = newActualHours >= 12 ? 'PM' : 'AM';
         const newDisplayHours = newActualHours > 12 ? newActualHours - 12 : (newActualHours === 0 ? 12 : newActualHours);
-        
+
         const newActualTime = `${newDisplayHours}:${newActualMinutes.toString().padStart(2, '0')} ${newActualPeriod}`;
 
         // Update appointment with accumulated delay
