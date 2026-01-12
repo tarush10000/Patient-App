@@ -8,6 +8,7 @@ import {
     RefreshCw,
     Shield
 } from 'lucide-react';
+import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
@@ -23,6 +24,7 @@ import {
 import { api } from '@/lib/api';
 
 export default function HealthCheckPage() {
+    const router = useRouter();
     const [loading, setLoading] = useState(false);
     const [logs, setLogs] = useState([]);
     const [stats, setStats] = useState({
@@ -36,8 +38,31 @@ export default function HealthCheckPage() {
     const [chartData, setChartData] = useState([]);
 
     useEffect(() => {
-        // Run a fresh health check on mount so data is immediately available
-        fetchHealthData(true);
+        const checkAuth = () => {
+            const token = api.getToken();
+            if (!token) {
+                router.push('/login');
+                return false;
+            }
+
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (payload.role !== 'admin') {
+                    router.push('/dashboard');
+                    return false;
+                }
+                return true;
+            } catch (error) {
+                console.error('Error checking auth:', error);
+                router.push('/login');
+                return false;
+            }
+        };
+
+        if (checkAuth()) {
+            // Run a fresh health check on mount so data is immediately available
+            fetchHealthData(true);
+        }
     }, []);
 
     const fetchHealthData = async (shouldTriggerNew = false) => {
