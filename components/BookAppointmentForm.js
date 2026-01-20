@@ -137,6 +137,38 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
         return `${displayHours}:${newMinutes.toString().padStart(2, '0')} ${newPeriod}`;
     };
 
+    const isSlotBlockedByTime = (slotTime) => {
+        if (!formData.appointmentDate) return false;
+
+        const now = new Date();
+        const selectedDate = new Date(formData.appointmentDate);
+        const today = new Date();
+
+        // Reset hours to compare just the dates
+        selectedDate.setHours(0, 0, 0, 0);
+        today.setHours(0, 0, 0, 0);
+
+        // Only check time for today
+        if (selectedDate.getTime() !== today.getTime()) {
+            return false;
+        }
+
+        const [timeStr, period] = slotTime.split(' - ')[0].split(' ');
+        let [hours, minutes] = timeStr.split(':').map(Number);
+
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+
+        const slotDate = new Date(formData.appointmentDate);
+        slotDate.setHours(hours, minutes, 0, 0);
+
+        // Calculate difference in hours
+        const diffInHours = (slotDate - now) / (1000 * 60 * 60);
+
+        // Block if slot is in the past or within 2 hours
+        return diffInHours < 2;
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
@@ -254,22 +286,26 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                             <button
                                                 key={slot.time}
                                                 type="button"
-                                                onClick={() => slot.status === 'available' && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
-                                                disabled={slot.status !== 'available'}
+                                                onClick={() => slot.status === 'available' && !isSlotBlockedByTime(slot.time) && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
+                                                disabled={slot.status !== 'available' || isSlotBlockedByTime(slot.time)}
                                                 className={`p-4 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
                                                     ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md'
-                                                    : slot.status === 'available'
-                                                        ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
-                                                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                                    : isSlotBlockedByTime(slot.time)
+                                                        ? 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                                        : slot.status === 'available'
+                                                            ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
+                                                            : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="font-semibold">{slot.time.split(' - ')[0]}</span>
-                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${slot.status === 'available'
-                                                        ? 'bg-green-100 text-green-800'
-                                                        : slot.status === 'blocked'
+                                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${isSlotBlockedByTime(slot.time)
                                                             ? 'bg-gray-200 text-gray-700'
-                                                            : 'bg-red-100 text-red-800'
+                                                            : slot.status === 'available'
+                                                                ? 'bg-green-100 text-green-800'
+                                                                : slot.status === 'blocked'
+                                                                    ? 'bg-gray-200 text-gray-700'
+                                                                    : 'bg-red-100 text-red-800'
                                                         }`}>
                                                         {slot.available}/{slot.capacity}
                                                     </span>
@@ -282,9 +318,9 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                                                         ⏱️ ~{calculateApproxTime(slot.time, slot.booked)}
                                                     </p>
                                                 )}
-                                                {slot.status === 'blocked' && (
+                                                {(slot.status === 'blocked' || isSlotBlockedByTime(slot.time)) && (
                                                     <p className="text-xs text-gray-600 mt-1">
-                                                        Blocked
+                                                        {isSlotBlockedByTime(slot.time) ? 'Too Soon' : 'Blocked'}
                                                     </p>
                                                 )}
                                                 {slot.status === 'full' && (
