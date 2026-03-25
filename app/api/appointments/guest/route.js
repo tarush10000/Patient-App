@@ -1,4 +1,5 @@
 import connectDB from '@/lib/mongodb';
+import { calculateAppointmentTime, getSlotCapacity } from '@/lib/slotConfig';
 import whatsBoostService from '@/lib/whatsboost';
 import Appointment from '@/models/Appointment';
 import { NextResponse } from 'next/server';
