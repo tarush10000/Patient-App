@@ -21,6 +21,8 @@ export default function GuestAppointmentPage() {
     const [errors, setErrors] = useState({});
     const [dayBlockedMessage, setDayBlockedMessage] = useState('');
 
+    const [success, setSuccess] = useState('');
+
     const consultationTypes = [
         { value: 'routine-checkup', label: 'Routine Check-up' },
         { value: 'prenatal-care', label: 'Prenatal Care' },
@@ -108,6 +110,7 @@ export default function GuestAppointmentPage() {
     const handleSubmit = async (e) => {
         e.preventDefault();
         setErrors({});
+        setSuccess('');
 
         // Validation
         if (!formData.fullName || !formData.phone || !formData.appointmentDate ||
@@ -133,11 +136,13 @@ export default function GuestAppointmentPage() {
                 throw new Error(data.error || 'Failed to book appointment');
             }
 
-            router.push('/');
+            setSuccess('Appointment booked successfully! Redirecting...');
+            setTimeout(() => {
+                router.push('/');
+            }, 2000);
 
         } catch (error) {
             setErrors({ general: error.message });
-        } finally {
             setLoading(false);
         }
     };
@@ -163,6 +168,12 @@ export default function GuestAppointmentPage() {
                         {errors.general && (
                             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
                                 {errors.general}
+                            </div>
+                        )}
+                        {success && (
+                            <div className="bg-green-50 border border-green-200 text-green-800 px-4 py-3 rounded-lg mb-4 flex flex-col items-center justify-center">
+                                <div className="text-center font-bold text-lg mb-1">{success}</div>
+                                <div className="text-sm text-center">Your appointment details will be sent to your WhatsApp.</div>
                             </div>
                         )}
 
@@ -255,19 +266,19 @@ export default function GuestAppointmentPage() {
                                                 onClick={() => slot.status === 'available' && setFormData(prev => ({ ...prev, timeSlot: slot.time }))}
                                                 disabled={slot.status !== 'available'}
                                                 className={`p-4 rounded-lg border-2 text-sm font-medium transition ${formData.timeSlot === slot.time
-                                                        ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md'
-                                                        : slot.status === 'available'
-                                                            ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
-                                                            : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
+                                                    ? 'border-blue-600 bg-blue-50 text-blue-700 shadow-md'
+                                                    : slot.status === 'available'
+                                                        ? 'border-green-500 bg-white hover:border-blue-400 hover:shadow-sm text-gray-700'
+                                                        : 'border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed'
                                                     }`}
                                             >
                                                 <div className="flex items-center justify-between mb-1">
                                                     <span className="font-semibold">{slot.time.split(' - ')[0]}</span>
                                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${slot.status === 'available'
-                                                            ? 'bg-green-100 text-green-800'
-                                                            : slot.status === 'blocked'
-                                                                ? 'bg-gray-200 text-gray-700'
-                                                                : 'bg-red-100 text-red-800'
+                                                        ? 'bg-green-100 text-green-800'
+                                                        : slot.status === 'blocked'
+                                                            ? 'bg-gray-200 text-gray-700'
+                                                            : 'bg-red-100 text-red-800'
                                                         }`}>
                                                         {slot.available}/{slot.capacity}
                                                     </span>
