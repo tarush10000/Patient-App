@@ -6,7 +6,9 @@
     "dev": "next dev --turbopack",
     "build": "next build --turbopack",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "test": "jest --forceExit",
+    "test:api": "jest --forceExit __tests__/api"
   },
   "dependencies": {
     "axios": "^1.12.2",
@@ -28,6 +30,7 @@
     "@tailwindcss/postcss": "^4",
     "eslint": "^9",
     "eslint-config-next": "15.5.4",
+    "jest": "^30.3.0",
     "tailwindcss": "^4"
   }
 }
