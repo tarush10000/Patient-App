@@ -104,10 +104,18 @@ export async function POST(request) {
             });
 
             if (existingAppointment) {
-                return NextResponse.json(
-                    { error: 'You already have an appointment scheduled for this day. Please choose a different date or cancel your existing appointment.' },
-                    { status: 409 }
-                );
+                if (appointmentData.forceReplace) {
+                    await Appointment.findByIdAndDelete(existingAppointment._id);
+                } else {
+                    return NextResponse.json(
+                        { 
+                            errorCode: 'DUPLICATE_APPOINTMENT',
+                            error: 'You already have an appointment scheduled for this day.',
+                            existingFullName: existingAppointment.fullName
+                        },
+                        { status: 409 }
+                    );
+                }
             }
         }
 

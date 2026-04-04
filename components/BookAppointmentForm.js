@@ -21,6 +21,21 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [dayBlockedMessage, setDayBlockedMessage] = useState('');
+    const [duplicateWarning, setDuplicateWarning] = useState(null);
+
+    // Identify if current user is admin or reception to bypass time constraints
+    const [isAdminOrReception, setIsAdminOrReception] = useState(false);
+    useEffect(() => {
+        const token = api.getToken();
+        if (token) {
+            try {
+                const payload = JSON.parse(atob(token.split('.')[1]));
+                if (['admin', 'reception'].includes(payload.role)) {
+                    setIsAdminOrReception(true);
+                }
+            } catch (e) { }
+        }
+    }, []);
 
     const consultationTypes = [
         { value: 'routine-checkup', label: 'Routine Check-up' },
@@ -100,8 +115,33 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                 if (onSuccess) onSuccess();
             }, 1500);
         } catch (err) {
-            setError(err.message || 'Failed to book appointment');
+            if (err.data && err.data.errorCode === 'DUPLICATE_APPOINTMENT') {
+                setDuplicateWarning({
+                    show: true,
+                    existingName: err.data.existingFullName
+                });
+            } else {
+                setError(err.message || 'Failed to book appointment');
+            }
         } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleForceSubmit = async () => {
+        setDuplicateWarning(null);
+        setLoading(true);
+        setError('');
+
+        try {
+            await api.createAppointment({ ...formData, forceReplace: true });
+            setSuccess('Appointment replaced successfully!');
+            await fetchAvailableSlots(formData.appointmentDate);
+            setTimeout(() => {
+                if (onSuccess) onSuccess();
+            }, 1500);
+        } catch (err) {
+            setError(err.message || 'Failed to replace booking');
             setLoading(false);
         }
     };
@@ -138,6 +178,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     };
 
     const isSlotBlockedByTime = (slotTime) => {
+        if (isAdminOrReception) return false;
         if (!formData.appointmentDate) return false;
 
         const now = new Date();
@@ -397,6 +438,44 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                     </div>
                 </form>
             </div>
+
+            {duplicateWarning && duplicateWarning.show && (
+                <div className="fixed inset-0 flex items-center justify-center p-4 z-[70] bg-black bg-opacity-70">
+                    <div className="bg-white rounded-xl shadow-2xl max-w-md w-full p-6 text-center text-gray-800 animate-in zoom-in-95 duration-200 border-2 border-red-100">
+                        <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-4">
+                            <Calendar size={32} />
+                        </div>
+                        <h3 className="text-xl font-bold mb-3 text-red-600">Duplicate Booking Detected</h3>
+                        <p className="mb-4 text-gray-600 font-medium">
+                            This phone number already has an appointment booked for <span className="text-gray-900 font-bold whitespace-nowrap">{formData.appointmentDate}</span>.
+                        </p>
+                        <p className="mb-4 text-gray-800 text-sm font-semibold bg-red-50 p-3 outline outline-1 outline-red-200 rounded-lg">
+                            If you proceed, the old appointment will be deleted!
+                        </p>
+                        {duplicateWarning.existingName !== formData.fullName && (
+                            <p className="mb-6 p-3 text-sm bg-orange-50 text-orange-800 font-semibold rounded-lg border border-orange-200">
+                                <span className="block mb-1 text-red-500 font-black tracking-wide">CAUTION: NAME MISMATCH</span>
+                                The existing appointment is under the name <strong>{duplicateWarning.existingName}</strong>.
+                                Use a different phone number if making appointment for multiple people or contact the reception!
+                            </p>
+                        )}
+                        <div className="flex gap-3">
+                            <button
+                                onClick={() => setDuplicateWarning(null)}
+                                className="flex-1 py-3 text-sm bg-gray-100 text-gray-700 font-bold rounded-lg hover:bg-gray-200 border border-gray-300 transition"
+                            >
+                                Cancel
+                            </button>
+                            <button
+                                onClick={handleForceSubmit}
+                                className="flex-1 py-3 text-sm bg-red-600 text-white font-bold rounded-lg shadow-md hover:bg-red-700 shadow-red-500/30 transition"
+                            >
+                                Yes, Replace Old
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
