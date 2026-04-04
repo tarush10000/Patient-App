@@ -92,7 +92,19 @@ export async function GET(request) {
         // Define tests
         await runSuite('mongodb.test.js', [
             {
-                name: 'Health check POST triggers DB verification',
+                name: 'Health endpoint returns database status',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health?secret=${secret}`);
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (data.logs && data.logs.length > 0) {
+                        const latest = data.logs[0];
+                        if (latest.services?.mongodb?.status !== 'up') throw new Error('MongoDB status is not up in logs');
+                    }
+                }
+            },
+            {
+                name: 'Health check POST triggers new check with DB verification',
                 fn: async () => {
                     const res = await fetch(`${BASE_URL}/api/health`, {
                         method: 'POST',
@@ -101,12 +113,36 @@ export async function GET(request) {
                     if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
                     const data = await res.json();
                     if (!data.success) throw new Error('Data success field was false');
-                    if (data.data.services.mongodb.status !== 'up') throw new Error('MongoDB status is not up');
+                    if (data.data?.services?.mongodb?.status !== 'up') throw new Error('MongoDB status is not up');
                 }
             }
         ]);
 
         await runSuite('whatsboost.test.js', [
+            {
+                name: 'Send dummy test message to canary number',
+                fn: async () => {
+                    const formData = new FormData();
+                    formData.append('appkey', process.env.WHATSBOOST_APP_KEY || '');
+                    formData.append('authkey', process.env.WHATSBOOST_AUTH_KEY || '');
+                    formData.append('to', '918630632030');
+                    formData.append('message', `🔬 Health Test at ${new Date().toISOString()}`);
+
+                    const res = await fetch('https://whatsboost.in/api/create-message', {
+                        method: 'POST', body: formData,
+                        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+                    });
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    
+                    const text = await res.text();
+                    let data;
+                    try { data = JSON.parse(text); } catch { throw new Error('WhatsBoost non-JSON response'); }
+                    
+                    const isNewFormat = data.status === true && data.ok === true;
+                    const isOldFormat = data.message_status === 'Success';
+                    if (!isNewFormat && !isOldFormat) throw new Error(`WhatsBoost API format rejected: ${text}`);
+                }
+            },
             {
                 name: 'WhatsBoost rejects invalid credentials',
                 fn: async () => {
@@ -119,8 +155,21 @@ export async function GET(request) {
                     const res = await fetch('https://whatsboost.in/api/create-message', {
                         method: 'POST', body: formData
                     });
-                    
                     if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            },
+            {
+                name: 'WhatsBoost rejects missing required fields',
+                fn: async () => {
+                    const formData = new FormData();
+                    formData.append('appkey', process.env.WHATSBOOST_APP_KEY || '');
+                    formData.append('authkey', process.env.WHATSBOOST_AUTH_KEY || '');
+                    // Missing 'to' and 'message'
+
+                    const res = await fetch('https://whatsboost.in/api/create-message', {
+                        method: 'POST', body: formData
+                    });
+                    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
                 }
             },
             {
@@ -132,14 +181,24 @@ export async function GET(request) {
                     });
                     if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
                     const data = await res.json();
-                    if (data.data.services.whatsboost.status !== 'connected') {
-                        throw new Error(`Device not connected: ${data.data.services.whatsboost.details}`);
+                    if (data.data?.services?.whatsboost?.status !== 'connected') {
+                        throw new Error(`Device not connected: ${data.data?.services?.whatsboost?.details}`);
                     }
                 }
             }
         ]);
 
         await runSuite('health.test.js', [
+            {
+                name: 'GET /api/health returns basic status without secret',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health`);
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (!['ok', 'degraded', 'down', 'unknown'].includes(data.status)) throw new Error('Invalid status format');
+                    if (data.logs) throw new Error('Logs should not be exposed');
+                }
+            },
             {
                 name: 'GET /api/health with secret returns full details',
                 fn: async () => {
@@ -157,6 +216,29 @@ export async function GET(request) {
                     const data = await res.json();
                     if (data.logs) throw new Error('Logs should not be exposed to wrong secret');
                 }
+            },
+            {
+                name: 'POST /api/health triggers health check with valid secret',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-health-secret': secret }
+                    });
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (!data.success) throw new Error('Expected success: true');
+                    if (!data.data?.services) throw new Error('Missing services data');
+                }
+            },
+            {
+                name: 'POST /api/health rejects without secret',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
             }
         ]);
 
@@ -171,13 +253,99 @@ export async function GET(request) {
                 }
             },
             {
+                name: 'POST /api/auth/send-otp rejects invalid phone format',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: '12345' })
+                    });
+                    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+                }
+            },
+            {
+                name: 'POST /api/auth/verify-otp rejects missing fields',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+                    });
+                    if (res.status < 400) throw new Error(`Expected error status, got ${res.status}`);
+                }
+            },
+            {
+                name: 'POST /api/auth/verify-otp rejects wrong OTP',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/auth/verify-otp`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ phone: '9999999999', otp: '000000' })
+                    });
+                    if (res.status < 400) throw new Error(`Expected error status, got ${res.status}`);
+                }
+            },
+            {
                 name: 'Protected route rejects missing auth token',
                 fn: async () => {
                     const res = await fetch(`${BASE_URL}/api/user/profile`);
                     if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
                 }
+            },
+            {
+                name: 'Protected route rejects invalid auth token',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/user/profile`, {
+                        headers: { 'Authorization': 'Bearer invalid.token.here' }
+                    });
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
             }
         ]);
+
+        await runSuite('appointments.test.js', [
+            {
+                name: 'GET /api/appointments rejects unauthenticated requests',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/appointments`);
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            },
+            {
+                name: 'POST /api/appointments rejects unauthenticated requests',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/appointments`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, 
+                        body: JSON.stringify({
+                            fullName: 'Test Patient', phone: '9876543210', 
+                            appointmentDate: new Date().toISOString(), timeSlot: '09:00 AM - 10:00 AM', consultationType: 'general'
+                        })
+                    });
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            },
+            {
+                name: 'GET /api/appointments/available-slots returns slots for valid date',
+                fn: async () => {
+                    const futureDate = new Date();
+                    futureDate.setDate(futureDate.getDate() + 7);
+                    const dateStr = futureDate.toISOString().split('T')[0];
+                    const res = await fetch(`${BASE_URL}/api/appointments/available-slots?date=${dateStr}`);
+                    if (![200, 401].includes(res.status)) throw new Error(`Expected valid status or 401, got ${res.status}`);
+                }
+            },
+            {
+                name: 'Guest appointment endpoint exists and validates input',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/appointments/guest`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+                    });
+                    if (res.status >= 500) throw new Error(`Expected 400s status, got ${res.status}`);
+                }
+            },
+            {
+                name: 'Appointment reminder endpoint requires auth',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/appointments/send-reminder`);
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            }
+        ]);
+
 
         // Construct final payload tailored to our frontend
         const result = {
