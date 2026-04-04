@@ -1,12 +1,5 @@
-
 import { NextResponse } from 'next/server';
 import crypto from 'crypto';
-import { exec } from 'child_process';
-import { promisify } from 'util';
-import fs from 'fs';
-import path from 'path';
-
-const execAsync = promisify(exec);
 
 /**
  * Timing-safe secret comparison
@@ -25,11 +18,12 @@ function verifySecret(provided, expected) {
 
 // Track last test run to prevent abuse
 let lastTestRun = 0;
-const MIN_TEST_INTERVAL = 60000; // 60 seconds between test runs
+const MIN_TEST_INTERVAL = 10000; // 10 seconds between test runs
 
 // ──────────────────────────────────────────────────
-// GET: Run Jest API tests remotely
-// Requires HEALTH_SECRET
+// GET: Native API Test Runner
+// Escapes Vercel's read-only filesystem restrictions 
+// by running fetch commands sequentially inside Node
 // ──────────────────────────────────────────────────
 export async function GET(request) {
     try {
@@ -44,115 +38,159 @@ export async function GET(request) {
         // Rate limiting
         const now = Date.now();
         if (now - lastTestRun < MIN_TEST_INTERVAL) {
-            // Return cached results if available
-            const cachedPath = path.join(process.cwd(), '.next', 'test-results.json');
-            if (fs.existsSync(cachedPath)) {
-                const cached = JSON.parse(fs.readFileSync(cachedPath, 'utf-8'));
-                return NextResponse.json({
-                    ...cached,
-                    cached: true,
-                    nextRunAvailableIn: Math.ceil((MIN_TEST_INTERVAL - (now - lastTestRun)) / 1000)
-                });
-            }
             return NextResponse.json({
-                error: 'Rate limited. Please wait before running tests again.',
+                error: 'Rate limited. Please wait 10 seconds before running tests again.',
                 nextRunAvailableIn: Math.ceil((MIN_TEST_INTERVAL - (now - lastTestRun)) / 1000)
             }, { status: 429 });
         }
 
         lastTestRun = now;
 
-        // Run Jest tests
-        try {
-            const { stdout, stderr } = await execAsync(
-                'npx jest --forceExit --json 2>&1',
-                {
-                    cwd: process.cwd(),
-                    timeout: 120000, // 2 minute timeout
-                    env: { ...process.env, NODE_ENV: 'test' }
-                }
-            );
+        // Determine base URL dynamically or fallback to env variable/localhost
+        const host = request.headers.get('host') || 'localhost:3000';
+        const protocol = host.includes('localhost') ? 'http' : 'https';
+        const BASE_URL = process.env.TEST_BASE_URL || `${protocol}://${host}`;
 
-            // Try to parse Jest JSON output
-            const jsonMatch = stdout.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
-            if (jsonMatch) {
-                const jestResult = JSON.parse(jsonMatch[0]);
-                const result = {
-                    timestamp: new Date().toISOString(),
-                    success: jestResult.success,
-                    numTotalTests: jestResult.numTotalTests,
-                    numPassedTests: jestResult.numPassedTests,
-                    numFailedTests: jestResult.numFailedTests,
-                    numPendingTests: jestResult.numPendingTests,
-                    duration: jestResult.testResults?.reduce((sum, s) => sum + (s.endTime - s.startTime), 0) || 0,
-                    testSuites: jestResult.testResults?.map(suite => ({
-                        name: path.basename(suite.testFilePath || suite.name || 'unknown'),
-                        status: suite.status === 'passed' ? 'passed' : 'failed',
-                        duration: (suite.endTime - suite.startTime) || 0,
-                        tests: suite.assertionResults?.map(test => ({
-                            name: test.fullName || test.title,
-                            status: test.status,
-                            duration: test.duration,
-                            error: test.failureMessages?.length > 0
-                                ? test.failureMessages.join('\n').substring(0, 500)
-                                : null
-                        })) || []
-                    })) || []
-                };
+        const startTime = Date.now();
+        const testResults = {
+            numTotalTests: 0,
+            numPassedTests: 0,
+            numFailedTests: 0,
+            testSuites: []
+        };
 
-                return NextResponse.json(result);
-            }
+        // Helper to run a suite
+        async function runSuite(name, tests) {
+            const suiteStart = Date.now();
+            const results = [];
+            let failed = false;
 
-            // Fallback: Return raw output
-            return NextResponse.json({
-                timestamp: new Date().toISOString(),
-                success: false,
-                rawOutput: stdout.substring(0, 2000),
-                error: stderr?.substring(0, 500) || null
-            });
-
-        } catch (execError) {
-            // Jest exits with code 1 when tests fail — that's expected
-            const output = execError.stdout || '';
-            const jsonMatch = output.match(/\{[\s\S]*"numTotalTests"[\s\S]*\}/);
-
-            if (jsonMatch) {
+            for (const test of tests) {
+                testResults.numTotalTests++;
+                const tStart = Date.now();
                 try {
-                    const jestResult = JSON.parse(jsonMatch[0]);
-                    const result = {
-                        timestamp: new Date().toISOString(),
-                        success: jestResult.success,
-                        numTotalTests: jestResult.numTotalTests,
-                        numPassedTests: jestResult.numPassedTests,
-                        numFailedTests: jestResult.numFailedTests,
-                        numPendingTests: jestResult.numPendingTests,
-                        duration: jestResult.testResults?.reduce((sum, s) => sum + (s.endTime - s.startTime), 0) || 0,
-                        testSuites: jestResult.testResults?.map(suite => ({
-                            name: path.basename(suite.testFilePath || suite.name || 'unknown'),
-                            status: suite.status === 'passed' ? 'passed' : 'failed',
-                            duration: (suite.endTime - suite.startTime) || 0,
-                            tests: suite.assertionResults?.map(test => ({
-                                name: test.fullName || test.title,
-                                status: test.status,
-                                duration: test.duration,
-                                error: test.failureMessages?.length > 0
-                                    ? test.failureMessages.join('\n').substring(0, 500)
-                                    : null
-                            })) || []
-                        })) || []
-                    };
-                    return NextResponse.json(result);
-                } catch { /* fall through */ }
+                    await test.fn();
+                    const duration = Date.now() - tStart;
+                    results.push({ name: test.name, status: 'passed', duration });
+                    testResults.numPassedTests++;
+                } catch (err) {
+                    const duration = Date.now() - tStart;
+                    results.push({ name: test.name, status: 'failed', duration, error: err.message });
+                    testResults.numFailedTests++;
+                    failed = true;
+                }
             }
 
-            return NextResponse.json({
-                timestamp: new Date().toISOString(),
-                success: false,
-                error: 'Test execution failed',
-                details: (execError.stderr || execError.message || '').substring(0, 500),
-                rawOutput: output.substring(0, 2000)
+            testResults.testSuites.push({
+                name,
+                status: failed ? 'failed' : 'passed',
+                duration: Date.now() - suiteStart,
+                tests: results
             });
         }
+
+        // Define tests
+        await runSuite('mongodb.test.js', [
+            {
+                name: 'Health check POST triggers DB verification',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-health-secret': secret }
+                    });
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (!data.success) throw new Error('Data success field was false');
+                    if (data.data.services.mongodb.status !== 'up') throw new Error('MongoDB status is not up');
+                }
+            }
+        ]);
+
+        await runSuite('whatsboost.test.js', [
+            {
+                name: 'WhatsBoost rejects invalid credentials',
+                fn: async () => {
+                    const formData = new FormData();
+                    formData.append('appkey', 'invalid-key');
+                    formData.append('authkey', 'invalid-auth');
+                    formData.append('to', '919999999999');
+                    formData.append('message', 'test');
+
+                    const res = await fetch('https://whatsboost.in/api/create-message', {
+                        method: 'POST', body: formData
+                    });
+                    
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            },
+            {
+                name: 'Health check reports WhatsBoost status',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json', 'x-health-secret': secret }
+                    });
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (data.data.services.whatsboost.status !== 'connected') {
+                        throw new Error(`Device not connected: ${data.data.services.whatsboost.details}`);
+                    }
+                }
+            }
+        ]);
+
+        await runSuite('health.test.js', [
+            {
+                name: 'GET /api/health with secret returns full details',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health?secret=${secret}`);
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (!Array.isArray(data.logs)) throw new Error('Logs array missing from response');
+                }
+            },
+            {
+                name: 'GET /api/health with wrong secret returns basic only',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/health?secret=wrong-secret-123`);
+                    if (res.status !== 200) throw new Error(`Expected 200, got ${res.status}`);
+                    const data = await res.json();
+                    if (data.logs) throw new Error('Logs should not be exposed to wrong secret');
+                }
+            }
+        ]);
+
+        await runSuite('auth.test.js', [
+            {
+                name: 'POST /api/auth/send-otp rejects missing phone',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/auth/send-otp`, {
+                        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({})
+                    });
+                    if (res.status !== 400) throw new Error(`Expected 400, got ${res.status}`);
+                }
+            },
+            {
+                name: 'Protected route rejects missing auth token',
+                fn: async () => {
+                    const res = await fetch(`${BASE_URL}/api/user/profile`);
+                    if (res.status !== 401) throw new Error(`Expected 401, got ${res.status}`);
+                }
+            }
+        ]);
+
+        // Construct final payload tailored to our frontend
+        const result = {
+            timestamp: new Date().toISOString(),
+            success: testResults.numFailedTests === 0,
+            numTotalTests: testResults.numTotalTests,
+            numPassedTests: testResults.numPassedTests,
+            numFailedTests: testResults.numFailedTests,
+            duration: Date.now() - startTime,
+            testSuites: testResults.testSuites
+        };
+
+        return NextResponse.json(result);
 
     } catch (error) {
         console.error('Run tests failed:', error);
