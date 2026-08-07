@@ -56,9 +56,10 @@ export default function AuthPage({ initialMode = 'login' }) {
         if (typeof window === 'undefined') return;
 
         const initMSG91 = () => {
+            if (typeof window === 'undefined') return;
             if (window.initSendOTP) {
-                const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID;
-                const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH;
+                const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID || "36686763304d323235373535";
+                const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH || "473564TLvKEjfX68f4ec68P1";
 
                 if (!widgetId || !tokenAuth) return;
 
@@ -155,44 +156,52 @@ export default function AuthPage({ initialMode = 'login' }) {
 
         const identifier = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-        if (typeof window !== 'undefined' && typeof window.sendOtp === 'function') {
-            let responded = false;
+        // Poll until window.sendOtp is ready (handles async SDK load on production)
+        const waitAndSendOtp = (retries = 50) => {
+            if (typeof window !== 'undefined' && typeof window.sendOtp === 'function') {
+                let responded = false;
 
-            const timeoutId = setTimeout(() => {
-                if (!responded) {
-                    setLoading(false);
-                    setErrors({ general: 'OTP request timed out. Please try again.' });
-                }
-            }, 10000);
-
-            try {
-                window.sendOtp(
-                    identifier,
-                    (data) => {
-                        responded = true;
-                        clearTimeout(timeoutId);
-                        setOtpSent(true);
-                        setSuccessMessage('OTP sent successfully!');
+                const timeoutId = setTimeout(() => {
+                    if (!responded) {
                         setLoading(false);
-                    },
-                    (error) => {
-                        responded = true;
-                        clearTimeout(timeoutId);
-                        const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to send OTP');
-                        setErrors({ general: errMsg });
-                        setLoading(false);
+                        setErrors({ general: 'OTP request timed out. Please try again.' });
                     }
-                );
-            } catch (err) {
-                responded = true;
-                clearTimeout(timeoutId);
-                setErrors({ general: err.message || 'Error sending OTP' });
+                }, 10000);
+
+                try {
+                    window.sendOtp(
+                        identifier,
+                        (data) => {
+                            responded = true;
+                            clearTimeout(timeoutId);
+                            setOtpSent(true);
+                            setSuccessMessage('OTP sent successfully!');
+                            setLoading(false);
+                        },
+                        (error) => {
+                            responded = true;
+                            clearTimeout(timeoutId);
+                            const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to send OTP');
+                            setErrors({ general: errMsg });
+                            setLoading(false);
+                        }
+                    );
+                } catch (err) {
+                    responded = true;
+                    clearTimeout(timeoutId);
+                    setErrors({ general: err.message || 'Error sending OTP' });
+                    setLoading(false);
+                }
+            } else if (retries > 0) {
+                // SDK not ready yet — retry after 100ms (up to 5s total)
+                setTimeout(() => waitAndSendOtp(retries - 1), 100);
+            } else {
                 setLoading(false);
+                setErrors({ general: 'OTP service failed to load. Please refresh the page and try again.' });
             }
-        } else {
-            setLoading(false);
-            setErrors({ general: 'OTP service is initializing. Please try again in a moment.' });
-        }
+        };
+
+        waitAndSendOtp();
     };
 
     const handleVerifyOTP = async () => {
