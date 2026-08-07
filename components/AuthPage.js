@@ -55,25 +55,50 @@ export default function AuthPage({ initialMode = 'login' }) {
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
+        const reportDiagnostic = (event, details) => {
+            try {
+                fetch('/api/auth/debug', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ event, details })
+                }).catch(() => {});
+            } catch (_) {}
+        };
+
         const initMSG91 = () => {
             if (typeof window === 'undefined') return;
             if (window.initSendOTP) {
                 const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID || "36686763304d323235373535";
                 const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH || "473564TLvKEjfX68f4ec68P1";
 
-                if (!widgetId || !tokenAuth) return;
+                if (!widgetId || !tokenAuth) {
+                    reportDiagnostic('INIT_MISSING_VARS', { widgetIdPresent: !!widgetId, tokenAuthPresent: !!tokenAuth });
+                    return;
+                }
 
                 const configuration = {
                     widgetId: widgetId,
                     tokenAuth: tokenAuth,
-                    exposeMethods: true
+                    exposeMethods: true,
+                    success: (data) => {
+                        reportDiagnostic('INIT_SUCCESS', { type: data?.type });
+                    },
+                    failure: (error) => {
+                        reportDiagnostic('INIT_FAILURE', { error: typeof error === 'string' ? error : JSON.stringify(error) });
+                    }
                 };
 
                 try {
                     window.initSendOTP(configuration);
+                    reportDiagnostic('INIT_CALLED', {
+                        sendOtpExposed: typeof window.sendOtp === 'function',
+                        verifyOtpExposed: typeof window.verifyOtp === 'function'
+                    });
                 } catch (err) {
-                    // Suppressed
+                    reportDiagnostic('INIT_EXCEPTION', { message: err.message });
                 }
+            } else {
+                reportDiagnostic('INIT_NO_FUNCTION', { initSendOTPType: typeof window.initSendOTP });
             }
         };
 
@@ -86,7 +111,13 @@ export default function AuthPage({ initialMode = 'login' }) {
                 script.src = 'https://verify.msg91.com/otp-provider.js';
                 script.type = 'text/javascript';
                 script.async = true;
-                script.onload = initMSG91;
+                script.onload = () => {
+                    reportDiagnostic('SCRIPT_LOADED', {});
+                    initMSG91();
+                };
+                script.onerror = (e) => {
+                    reportDiagnostic('SCRIPT_LOAD_FAILED', { message: e?.message || 'unknown' });
+                };
                 document.body.appendChild(script);
             } else {
                 existingScript.addEventListener('load', initMSG91);
@@ -196,6 +227,21 @@ export default function AuthPage({ initialMode = 'login' }) {
                 // SDK not ready yet — retry after 100ms (up to 5s total)
                 setTimeout(() => waitAndSendOtp(retries - 1), 100);
             } else {
+                // Report exhausted retries to server log
+                try {
+                    fetch('/api/auth/debug', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            event: 'SEND_OTP_SDK_NOT_READY',
+                            details: {
+                                initSendOTPType: typeof window.initSendOTP,
+                                sendOtpType: typeof window.sendOtp,
+                                verifyOtpType: typeof window.verifyOtp
+                            }
+                        })
+                    }).catch(() => {});
+                } catch (_) {}
                 setLoading(false);
                 setErrors({ general: 'OTP service failed to load. Please refresh the page and try again.' });
             }
