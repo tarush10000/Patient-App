@@ -51,6 +51,48 @@ export default function AuthPage({ initialMode = 'login' }) {
         checkExistingAuth();
     }, [router]);
 
+    // Load and initialize MSG91 OTP Web SDK
+    useEffect(() => {
+        if (typeof window === 'undefined') return;
+
+        const initMSG91 = () => {
+            if (window.initSendOTP) {
+                const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID;
+                const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH;
+
+                if (!widgetId || !tokenAuth) return;
+
+                const configuration = {
+                    widgetId: widgetId,
+                    tokenAuth: tokenAuth,
+                    exposeMethods: true
+                };
+
+                try {
+                    window.initSendOTP(configuration);
+                } catch (err) {
+                    // Suppressed
+                }
+            }
+        };
+
+        if (window.initSendOTP) {
+            initMSG91();
+        } else {
+            const existingScript = document.querySelector('script[src="https://verify.msg91.com/otp-provider.js"]');
+            if (!existingScript) {
+                const script = document.createElement('script');
+                script.src = 'https://verify.msg91.com/otp-provider.js';
+                script.type = 'text/javascript';
+                script.async = true;
+                script.onload = initMSG91;
+                document.body.appendChild(script);
+            } else {
+                existingScript.addEventListener('load', initMSG91);
+            }
+        }
+    }, []);
+
     const getCookie = (name) => {
         if (typeof document === 'undefined') return null;
         const value = `; ${document.cookie}`;
@@ -98,7 +140,8 @@ export default function AuthPage({ initialMode = 'login' }) {
         setErrors({});
         setSuccessMessage('');
 
-        if (!formData.phone || formData.phone.length < 10) {
+        const cleanPhone = formData.phone.replace(/\D/g, '');
+        if (!cleanPhone || cleanPhone.length < 10) {
             setErrors({ phone: 'Please enter a valid 10-digit phone number' });
             return;
         }
@@ -110,33 +153,53 @@ export default function AuthPage({ initialMode = 'login' }) {
 
         setLoading(true);
 
-        try {
-            const response = await fetch('/api/auth/send-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: formData.phone })
-            });
+        const identifier = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-            const data = await response.json();
+        if (typeof window !== 'undefined' && typeof window.sendOtp === 'function') {
+            let responded = false;
 
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to send OTP');
+            const timeoutId = setTimeout(() => {
+                if (!responded) {
+                    setLoading(false);
+                    setErrors({ general: 'OTP request timed out. Please try again.' });
+                }
+            }, 10000);
+
+            try {
+                window.sendOtp(
+                    identifier,
+                    (data) => {
+                        responded = true;
+                        clearTimeout(timeoutId);
+                        setOtpSent(true);
+                        setSuccessMessage('OTP sent successfully!');
+                        setLoading(false);
+                    },
+                    (error) => {
+                        responded = true;
+                        clearTimeout(timeoutId);
+                        const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to send OTP');
+                        setErrors({ general: errMsg });
+                        setLoading(false);
+                    }
+                );
+            } catch (err) {
+                responded = true;
+                clearTimeout(timeoutId);
+                setErrors({ general: err.message || 'Error sending OTP' });
+                setLoading(false);
             }
-
-            setOtpSent(true);
-            setSuccessMessage('OTP sent successfully to your WhatsApp!');
-        } catch (error) {
-            setErrors({ general: error.message });
-        } finally {
+        } else {
             setLoading(false);
+            setErrors({ general: 'OTP service is initializing. Please try again in a moment.' });
         }
     };
 
     const handleVerifyOTP = async () => {
         setErrors({});
 
-        if (!formData.otp || formData.otp.length !== 6) {
-            setErrors({ otp: 'Please enter a valid 6-digit OTP' });
+        if (!formData.otp || formData.otp.length < 4) {
+            setErrors({ otp: 'Please enter a valid 4-digit OTP' });
             return;
         }
 
@@ -147,41 +210,75 @@ export default function AuthPage({ initialMode = 'login' }) {
 
         setLoading(true);
 
-        try {
-            const requestBody = {
-                phone: formData.phone,
-                otp: formData.otp,
-                rememberMe: formData.rememberMe
-            };
+        if (typeof window !== 'undefined' && typeof window.verifyOtp === 'function') {
+            let responded = false;
 
-            // Add fullName only for signup
-            if (authMode === 'signup') {
-                requestBody.fullName = formData.fullName;
+            const timeoutId = setTimeout(() => {
+                if (!responded) {
+                    setLoading(false);
+                    setErrors({ general: 'OTP verification timed out. Please try again.' });
+                }
+            }, 10000);
+
+            try {
+                window.verifyOtp(
+                    formData.otp,
+                    async (data) => {
+                        responded = true;
+                        clearTimeout(timeoutId);
+                        try {
+                            const cleanPhone = formData.phone.replace(/\D/g, '').slice(-10);
+                            const requestBody = {
+                                phone: cleanPhone,
+                                otp: formData.otp,
+                                rememberMe: formData.rememberMe,
+                                msg91Data: data
+                            };
+
+                            if (authMode === 'signup') {
+                                requestBody.fullName = formData.fullName;
+                            }
+
+                            const response = await fetch('/api/auth/verify-otp', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify(requestBody)
+                            });
+
+                            const resData = await response.json();
+
+                            if (!response.ok) {
+                                throw new Error(resData.error || 'Verification failed on server');
+                            }
+
+                            localStorage.setItem('authToken', resData.token);
+                            setSuccessMessage(resData.message || 'Authentication successful!');
+
+                            setTimeout(() => {
+                                router.push('/dashboard');
+                            }, 1000);
+                        } catch (error) {
+                            setErrors({ general: error.message });
+                            setLoading(false);
+                        }
+                    },
+                    (error) => {
+                        responded = true;
+                        clearTimeout(timeoutId);
+                        const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Invalid OTP');
+                        setErrors({ general: errMsg });
+                        setLoading(false);
+                    }
+                );
+            } catch (err) {
+                responded = true;
+                clearTimeout(timeoutId);
+                setErrors({ general: err.message || 'Error verifying OTP' });
+                setLoading(false);
             }
-
-            const response = await fetch('/api/auth/verify-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(requestBody)
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Verification failed');
-            }
-
-            localStorage.setItem('authToken', data.token);
-            setSuccessMessage(data.message || 'Authentication successful!');
-
-            setTimeout(() => {
-                router.push('/dashboard');
-            }, 1000);
-
-        } catch (error) {
-            setErrors({ general: error.message });
-        } finally {
+        } else {
             setLoading(false);
+            setErrors({ general: 'OTP service is not available' });
         }
     };
 
@@ -189,24 +286,22 @@ export default function AuthPage({ initialMode = 'login' }) {
         setLoading(true);
         setErrors({});
 
-        try {
-            const response = await fetch('/api/auth/resend-otp', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ phone: formData.phone })
-            });
-
-            const data = await response.json();
-
-            if (!response.ok) {
-                throw new Error(data.error || 'Failed to resend OTP');
-            }
-
-            setSuccessMessage('OTP resent successfully to your WhatsApp!');
-        } catch (error) {
-            setErrors({ general: error.message });
-        } finally {
+        if (typeof window !== 'undefined' && typeof window.retryOtp === 'function') {
+            window.retryOtp(
+                '11',
+                (data) => {
+                    setSuccessMessage('OTP resent successfully!');
+                    setLoading(false);
+                },
+                (error) => {
+                    const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to resend OTP');
+                    setErrors({ general: errMsg });
+                    setLoading(false);
+                }
+            );
+        } else {
             setLoading(false);
+            setErrors({ general: 'OTP service is not available' });
         }
     };
 
@@ -331,8 +426,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     name="otp"
                                     value={formData.otp}
                                     onChange={handleInputChange}
-                                    placeholder="Enter 6-digit OTP"
-                                    maxLength="6"
+                                    placeholder="Enter 4-digit OTP"
+                                    maxLength="4"
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-lg font-semibold tracking-widest text-gray-800"
                                 />
                                 {errors.otp && <p className="text-red-600 text-xs mt-1">{errors.otp}</p>}
@@ -407,6 +502,8 @@ export default function AuthPage({ initialMode = 'login' }) {
                     </div>
                 </div>
             )}
+            {/* Hidden container for MSG91 Captcha if required */}
+            <div id="msg91-captcha-render" className="hidden"></div>
         </div>
     );
 }

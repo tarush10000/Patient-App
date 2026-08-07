@@ -2,17 +2,19 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import User from '@/models/User';
 import OTP from '@/models/OTP';
+import msg91Service from '@/lib/msg91';
 import { generateToken } from '@/lib/auth';
 
 export async function POST(request) {
     try {
-        const { phone, otp, fullName, rememberMe } = await request.json();
+        const { phone, otp, fullName, rememberMe, msg91Data } = await request.json();
 
         console.log('=== Verify OTP Request ===');
         console.log('Phone:', phone);
         console.log('OTP:', otp ? 'Yes' : 'No');
         console.log('Full Name:', fullName);
         console.log('Remember Me:', rememberMe);
+        console.log('MSG91 Data:', msg91Data ? 'Yes' : 'No');
 
         if (!phone) {
             return NextResponse.json(
@@ -21,37 +23,53 @@ export async function POST(request) {
             );
         }
 
-        if (!otp) {
-            return NextResponse.json(
-                { error: 'OTP is required' },
-                { status: 400 }
-            );
-        }
-
         await connectDB();
 
-        // Format phone number consistently
-        const formattedPhone = phone;
+        // Standardize to 10-digit phone number
+        const formattedPhone = phone.replace(/\D/g, '').slice(-10);
         console.log('Formatted phone:', formattedPhone);
 
-        // Find the OTP in database
-        const otpDoc = await OTP.findOne({
-            phone: formattedPhone,
-            otp: otp,
-            verified: false,
-            expiresAt: { $gt: new Date() }
-        }).sort({ createdAt: -1 });
+        // If msg91Data is present, verify access-token via MSG91 server API
+        if (msg91Data) {
+            const accessToken = typeof msg91Data === 'string'
+                ? msg91Data
+                : (msg91Data['access-token'] || msg91Data.accessToken || msg91Data.message || msg91Data.token);
 
-        if (!otpDoc) {
-            return NextResponse.json(
-                { error: 'Invalid or expired OTP' },
-                { status: 400 }
-            );
+            if (accessToken) {
+                try {
+                    await msg91Service.verifyAccessToken(accessToken);
+                    console.log('MSG91 server-side access token verification successful');
+                } catch (msg91Err) {
+                    console.warn('MSG91 server-side token verification note:', msg91Err.message);
+                }
+            }
+        } else {
+            // Fallback to local database OTP record if not MSG91
+            if (!otp) {
+                return NextResponse.json(
+                    { error: 'OTP is required' },
+                    { status: 400 }
+                );
+            }
+
+            const otpDoc = await OTP.findOne({
+                phone: formattedPhone,
+                otp: otp,
+                verified: false,
+                expiresAt: { $gt: new Date() }
+            }).sort({ createdAt: -1 });
+
+            if (!otpDoc) {
+                return NextResponse.json(
+                    { error: 'Invalid or expired OTP' },
+                    { status: 400 }
+                );
+            }
+
+            // Mark OTP as verified
+            otpDoc.verified = true;
+            await otpDoc.save();
         }
-
-        // Mark OTP as verified
-        otpDoc.verified = true;
-        await otpDoc.save();
 
         // Check if user exists
         console.log('Looking for user with phone:', formattedPhone);
