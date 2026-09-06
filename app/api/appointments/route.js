@@ -1,6 +1,6 @@
 import connectDB from '@/lib/mongodb';
 import { calculateAppointmentTime, getSlotCapacity } from '@/lib/slotConfig';
-import whatsBoostService from '@/lib/whatsboost';
+import { sendAppointmentConfirmationSMS } from '@/lib/msg91Sms';
 import { authenticate } from '@/middleware/auth';
 import Appointment from '@/models/Appointment';
 import { NextResponse } from 'next/server';
@@ -154,22 +154,19 @@ export async function POST(request) {
         // Send appointment confirmation message via WhatsBoost
         try {
             const appointmentDateObj = new Date(appointmentDate);
-            const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
+            const formattedDate = appointmentDateObj.toLocaleDateString('en-GB', {
+                day: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                year: 'numeric'
             });
 
             // Calculate actual appointment time based on existing appointments
-            // Uses dynamic slot gap calculation: slot duration / slot capacity
+            // Format: "20 August 2026 at 6:00 PM" (always well under 30 chars for DLT)
             const actualAppointmentTime = calculateAppointmentTime(timeSlot, existingCount);
 
-            await whatsBoostService.sendAppointmentConfirmation(phone, {
-                patientName: fullName,
-                date: formattedDate,
-                timeSlot: actualAppointmentTime,
-                consultationType: consultationType.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())
+            await sendAppointmentConfirmationSMS(phone, {
+                patientName: fullName.split(' ')[0] || fullName,
+                appointmentTime: `${formattedDate} at ${actualAppointmentTime}`
             });
         } catch (messageError) {
             console.error('Failed to send appointment confirmation message:', messageError);

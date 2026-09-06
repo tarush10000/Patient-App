@@ -1,6 +1,6 @@
 import connectDB from '@/lib/mongodb';
 import { getSlotGap } from '@/lib/slotConfig';
-import whatsBoostService from '@/lib/whatsboost';
+import { sendAppointmentDelaySMS } from '@/lib/msg91Sms';
 import { authenticate } from '@/middleware/auth';
 import Appointment from '@/models/Appointment';
 import { NextResponse } from 'next/server';
@@ -95,29 +95,22 @@ export async function PATCH(request, { params }) {
         appointment.delayMinutes = (appointment.delayMinutes || 0) + delayMinutes;
         await appointment.save();
 
-        // Send delay notification via WhatsApp (only for non-emergency appointments)
+        // Send delay notification via SMS (only for non-emergency appointments)
         const appointmentDateObj = new Date(appointment.appointmentDate);
-        const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
-            weekday: 'long',
-            year: 'numeric',
-            month: 'long',
-            day: 'numeric'
+        const formattedDate = appointmentDateObj.toLocaleDateString('en-GB', {
+            day: 'numeric',
+            month: 'short',
+            year: 'numeric'
         });
 
-        const consultationTypeFormatted = appointment.consultationType
-            .replace(/-/g, ' ')
-            .replace(/\b\w/g, l => l.toUpperCase());
-
         try {
-            await whatsBoostService.sendAppointmentDelay(
+            await sendAppointmentDelaySMS(
                 appointment.phone,
                 {
-                    patientName: appointment.fullName,
-                    date: formattedDate,
-                    oldTime: oldActualTime,
-                    newTime: newActualTime,
-                    delayMinutes,
-                    consultationType: consultationTypeFormatted
+                    patientName: appointment.fullName.split(' ')[0] || appointment.fullName,
+                    originalTime: `${formattedDate} at ${oldActualTime}`,
+                    newTime: `${formattedDate} at ${newActualTime}`,
+                    delayMinutes
                 }
             );
         } catch (messageError) {

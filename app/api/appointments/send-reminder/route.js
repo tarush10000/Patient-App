@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
-import whatsBoostService from '@/lib/whatsboost';
+import { sendAppointmentReminderSMS } from '@/lib/msg91Sms';
 
 /**
  * API endpoint to check and send appointment reminders
@@ -47,27 +47,22 @@ export async function GET(request) {
         // Send reminder for each appointment
         for (const appointment of appointmentsToRemind) {
             try {
-                // Format appointment details
+                // Format appointment details (DLT variables must be max 30 chars)
                 const appointmentDateObj = new Date(appointment.appointmentDate);
-                const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
-                    weekday: 'long',
-                    year: 'numeric',
+                const formattedDate = appointmentDateObj.toLocaleDateString('en-GB', {
+                    day: 'numeric',
                     month: 'long',
-                    day: 'numeric'
+                    year: 'numeric'
                 });
 
-                const consultationTypeFormatted = appointment.consultationType
-                    .replace(/-/g, ' ')
-                    .replace(/\b\w/g, l => l.toUpperCase());
+                const slotStartTime = (appointment.timeSlot || '').split(' - ')[0] || appointment.timeSlot;
 
-                // Send reminder via WhatsBoost
-                const result = await whatsBoostService.sendAppointmentReminder(
+                // Send reminder via MSG91 SMS
+                const result = await sendAppointmentReminderSMS(
                     appointment.phone,
                     {
-                        patientName: appointment.fullName,
-                        date: formattedDate,
-                        timeSlot: appointment.timeSlot,
-                        consultationType: consultationTypeFormatted
+                        patientName: appointment.fullName.split(' ')[0] || appointment.fullName,
+                        appointmentTime: `${formattedDate} at ${slotStartTime}`
                     }
                 );
 

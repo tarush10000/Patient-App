@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
 import Appointment from '@/models/Appointment';
 import { authenticate, authorizeRoles } from '@/middleware/auth';
-import whatsBoostService from '@/lib/whatsboost';
+import { sendAppointmentCancellationSMS, sendThankYouSMS } from '@/lib/msg91Sms';
 
 // PATCH update appointment
 export async function PATCH(request, { params }) {
@@ -14,7 +14,7 @@ export async function PATCH(request, { params }) {
 
         await connectDB();
         const { user } = authResult;
-        const { id } = params;
+        const { id } = await params;
 
         const appointment = await Appointment.findById(id).populate('patientId');
 
@@ -38,34 +38,33 @@ export async function PATCH(request, { params }) {
         // Send appropriate messages based on status changes and appointment type
         try {
             const appointmentDateObj = new Date(appointment.appointmentDate);
-            const formattedDate = appointmentDateObj.toLocaleDateString('en-IN', {
-                weekday: 'long',
-                year: 'numeric',
+            const formattedDate = appointmentDateObj.toLocaleDateString('en-GB', {
+                day: 'numeric',
                 month: 'long',
-                day: 'numeric'
+                year: 'numeric'
             });
 
             // For EMERGENCY appointments - only send thank you message when marked as seen
             if (appointment.isEmergency) {
                 if (updates.status === 'seen' && oldStatus !== 'seen') {
-                    await whatsBoostService.sendThankYouMessage(appointment.phone, {
-                        patientName: appointment.fullName
+                    await sendThankYouSMS(appointment.phone, {
+                        patientName: appointment.fullName.split(' ')[0] || appointment.fullName
                     });
                 }
                 // No other messages for emergency appointments
             } else {
                 // For REGULAR appointments - send cancellation and thank you messages
                 if (updates.status === 'cancelled' && oldStatus !== 'cancelled') {
-                    await whatsBoostService.sendAppointmentCancellation(appointment.phone, {
-                        patientName: appointment.fullName,
-                        date: formattedDate,
-                        timeSlot: appointment.timeSlot
+                    const slotStartTime = (appointment.timeSlot || '').split(' - ')[0] || appointment.timeSlot;
+                    await sendAppointmentCancellationSMS(appointment.phone, {
+                        patientName: appointment.fullName.split(' ')[0] || appointment.fullName,
+                        appointmentTime: `${formattedDate} at ${slotStartTime}`
                     });
                 }
 
                 if (updates.status === 'seen' && oldStatus !== 'seen') {
-                    await whatsBoostService.sendThankYouMessage(appointment.phone, {
-                        patientName: appointment.fullName
+                    await sendThankYouSMS(appointment.phone, {
+                        patientName: appointment.fullName.split(' ')[0] || appointment.fullName
                     });
                 }
             }
@@ -107,7 +106,7 @@ export async function DELETE(request, { params }) {
         }
 
         await connectDB();
-        const { id } = params;
+        const { id } = await params;
 
         const appointment = await Appointment.findById(id);
 

@@ -7,14 +7,12 @@ import { generateToken } from '@/lib/auth';
 
 export async function POST(request) {
     try {
-        const { phone, otp, fullName, rememberMe, msg91Data } = await request.json();
+        const { phone, otp, fullName, rememberMe, accessToken } = await request.json();
 
         console.log('=== Verify OTP Request ===');
         console.log('Phone:', phone);
-        console.log('OTP:', otp ? 'Yes' : 'No');
-        console.log('Full Name:', fullName);
-        console.log('Remember Me:', rememberMe);
-        console.log('MSG91 Data:', msg91Data ? 'Yes' : 'No');
+        console.log('OTP provided:', !!otp);
+        console.log('Access Token provided:', !!accessToken);
 
         if (!phone) {
             return NextResponse.json(
@@ -25,63 +23,51 @@ export async function POST(request) {
 
         await connectDB();
 
-        // Standardize to 10-digit phone number
         const formattedPhone = phone.replace(/\D/g, '').slice(-10);
-        console.log('Formatted phone:', formattedPhone);
 
-        // If msg91Data is present, verify access-token via MSG91 server API
-        if (msg91Data) {
-            const accessToken = typeof msg91Data === 'string'
-                ? msg91Data
-                : (msg91Data['access-token'] || msg91Data.accessToken || msg91Data.message || msg91Data.token);
-
-            if (accessToken) {
-                try {
-                    await msg91Service.verifyAccessToken(accessToken);
-                    console.log('MSG91 server-side access token verification successful');
-                } catch (msg91Err) {
-                    console.warn('MSG91 server-side token verification note:', msg91Err.message);
-                }
-            }
-        } else {
-            // Fallback to local database OTP record if not MSG91
-            if (!otp) {
+        // 1. Verify via MSG91 Server verifyAccessToken API if access-token is passed
+        if (accessToken) {
+            try {
+                console.log('Verifying token via MSG91 verifyAccessToken API...');
+                const verifyResult = await msg91Service.verifyAccessToken(accessToken);
+                console.log('MSG91 verifyAccessToken verified successfully:', verifyResult);
+            } catch (msg91Err) {
+                console.error('MSG91 verifyAccessToken failed:', msg91Err.message);
                 return NextResponse.json(
-                    { error: 'OTP is required' },
+                    { error: msg91Err.message || 'OTP verification failed with provider' },
                     { status: 400 }
                 );
             }
-
+        } else if (otp) {
+            // 2. Fallback to database OTP record
             const otpDoc = await OTP.findOne({
                 phone: formattedPhone,
-                otp: otp,
+                otp: String(otp),
                 verified: false,
                 expiresAt: { $gt: new Date() }
             }).sort({ createdAt: -1 });
 
             if (!otpDoc) {
                 return NextResponse.json(
-                    { error: 'Invalid or expired OTP' },
+                    { error: 'Invalid or expired OTP. Please request a new one.' },
                     { status: 400 }
                 );
             }
 
-            // Mark OTP as verified
             otpDoc.verified = true;
             await otpDoc.save();
+        } else {
+            return NextResponse.json(
+                { error: 'Either OTP or verification access token is required' },
+                { status: 400 }
+            );
         }
 
-        // Check if user exists
-        console.log('Looking for user with phone:', formattedPhone);
+        // Find or create user
         let user = await User.findOne({ phone: formattedPhone });
-        console.log('User found:', user ? 'Yes' : 'No');
-
         let isNewUser = false;
 
         if (!user) {
-            // New user signup
-            console.log('Creating new user...');
-
             if (!fullName) {
                 return NextResponse.json(
                     { error: 'Full name is required for new users' },
@@ -90,26 +76,21 @@ export async function POST(request) {
             }
 
             user = await User.create({
-                fullName: fullName,
+                fullName,
                 phone: formattedPhone,
                 isPhoneVerified: true,
                 role: 'patient'
             });
-
             isNewUser = true;
-            console.log('New user created:', user._id);
         } else {
-            // Existing user login
-            console.log('Updating existing user...');
             user.isPhoneVerified = true;
             await user.save();
         }
 
-        // Generate token with remember me option
+        // Issue JWT
         const tokenExpiry = rememberMe ? '30d' : '7d';
         const token = generateToken(user._id, user.role, tokenExpiry);
 
-        // Set secure HTTP-only cookie for remember me
         const response = NextResponse.json({
             message: isNewUser ? 'Account created successfully' : 'Login successful',
             token,
@@ -126,19 +107,14 @@ export async function POST(request) {
                 httpOnly: true,
                 secure: process.env.NODE_ENV === 'production',
                 sameSite: 'strict',
-                maxAge: 30 * 24 * 60 * 60 // 30 days
+                maxAge: 30 * 24 * 60 * 60
             });
         }
 
-        console.log('=== Verify OTP Success ===');
         return response;
 
     } catch (error) {
-        console.error('=== Verify OTP Error ===');
-        console.error('Error message:', error.message);
-        console.error('Error stack:', error.stack);
-        console.error('Full error:', error);
-
+        console.error('[verify-otp] Error:', error.message);
         return NextResponse.json(
             { error: error.message || 'Verification failed' },
             { status: 500 }

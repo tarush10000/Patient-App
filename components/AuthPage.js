@@ -2,7 +2,7 @@
 
 import { AlertCircle, Phone, User } from 'lucide-react';
 import { useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
 
 export default function AuthPage({ initialMode = 'login' }) {
@@ -11,6 +11,7 @@ export default function AuthPage({ initialMode = 'login' }) {
     const [loading, setLoading] = useState(false);
     const [showGuestWarning, setShowGuestWarning] = useState(false);
     const [otpSent, setOtpSent] = useState(false);
+    const [sdkReady, setSdkReady] = useState(false);
 
     const [formData, setFormData] = useState({
         fullName: '',
@@ -22,6 +23,18 @@ export default function AuthPage({ initialMode = 'login' }) {
     const [errors, setErrors] = useState({});
     const [successMessage, setSuccessMessage] = useState('');
 
+    const formDataRef = useRef(formData);
+    const authModeRef = useRef(authMode);
+
+    useEffect(() => {
+        formDataRef.current = formData;
+    }, [formData]);
+
+    useEffect(() => {
+        authModeRef.current = authMode;
+    }, [authMode]);
+
+    // Check existing auth session
     useEffect(() => {
         const checkExistingAuth = async () => {
             const token = localStorage.getItem('authToken');
@@ -41,7 +54,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                         localStorage.removeItem('authToken');
                         deleteCookie('authToken');
                     }
-                } catch (error) {
+                } catch {
                     localStorage.removeItem('authToken');
                     deleteCookie('authToken');
                 }
@@ -51,77 +64,112 @@ export default function AuthPage({ initialMode = 'login' }) {
         checkExistingAuth();
     }, [router]);
 
-    // Load and initialize MSG91 OTP Web SDK
+    // Handle verification completion (server-side verifyAccessToken)
+    const handleVerificationSuccess = async (data) => {
+        console.log('[MSG91 OTP] Success response:', data);
+        const accessToken = typeof data === 'string'
+            ? data
+            : (data?.['access-token'] || data?.accessToken || data?.message || data?.token);
+
+        try {
+            const currentForm = formDataRef.current;
+            const currentMode = authModeRef.current;
+            const cleanPhone = currentForm.phone.replace(/\D/g, '').slice(-10);
+
+            const res = await fetch('/api/auth/verify-otp', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    phone: cleanPhone,
+                    accessToken: accessToken,
+                    fullName: currentMode === 'signup' ? currentForm.fullName.trim() : undefined,
+                    rememberMe: currentForm.rememberMe
+                })
+            });
+
+            const resData = await res.json();
+            if (!res.ok) {
+                setErrors({ general: resData.error || 'Verification failed on server' });
+                setLoading(false);
+                return;
+            }
+
+            localStorage.setItem('authToken', resData.token);
+            setSuccessMessage(resData.message || 'Authentication successful!');
+            setTimeout(() => {
+                router.push('/dashboard');
+            }, 1000);
+        } catch (err) {
+            console.error('[MSG91 OTP] Verification error:', err);
+            setErrors({ general: err.message || 'Error processing login' });
+            setLoading(false);
+        }
+    };
+
+    // Load and initialize MSG91 Widget as specified
     useEffect(() => {
         if (typeof window === 'undefined') return;
 
-        const reportDiagnostic = (event, details) => {
-            try {
-                fetch('/api/auth/debug', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ event, details })
-                }).catch(() => {});
-            } catch (_) {}
+        const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID || "356a736b3462383434333432";
+        const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH || "473564TLvKEjfX68f4ec68P1";
+
+        window.configuration = {
+            widgetId: widgetId,
+            tokenAuth: tokenAuth,
+            exposeMethods: true,
+            success: (data) => {
+                console.log('success response', data);
+                handleVerificationSuccess(data);
+            },
+            failure: (error) => {
+                console.log('failure reason', error);
+                const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'OTP operation failed');
+                setErrors({ general: errMsg });
+                setLoading(false);
+            }
         };
 
-        const initMSG91 = () => {
-            if (typeof window === 'undefined') return;
-            if (window.initSendOTP) {
-                const widgetId = process.env.NEXT_PUBLIC_MSG91_WIDGET_ID || "36686763304d323235373535";
-                const tokenAuth = process.env.NEXT_PUBLIC_MSG91_TOKEN_AUTH || "473564TLvKEjfX68f4ec68P1";
-
-                if (!widgetId || !tokenAuth) {
-                    reportDiagnostic('INIT_MISSING_VARS', { widgetIdPresent: !!widgetId, tokenAuthPresent: !!tokenAuth });
-                    return;
-                }
-
-                const configuration = {
-                    widgetId: widgetId,
-                    tokenAuth: tokenAuth,
-                    exposeMethods: true,
-                    success: (data) => {
-                        reportDiagnostic('INIT_SUCCESS', { type: data?.type });
-                    },
-                    failure: (error) => {
-                        reportDiagnostic('INIT_FAILURE', { error: typeof error === 'string' ? error : JSON.stringify(error) });
-                    }
-                };
-
+        const initScript = () => {
+            if (typeof window.initSendOTP === 'function') {
                 try {
-                    window.initSendOTP(configuration);
-                    reportDiagnostic('INIT_CALLED', {
-                        sendOtpExposed: typeof window.sendOtp === 'function',
-                        verifyOtpExposed: typeof window.verifyOtp === 'function'
-                    });
-                } catch (err) {
-                    reportDiagnostic('INIT_EXCEPTION', { message: err.message });
+                    window.initSendOTP(window.configuration);
+                    setSdkReady(true);
+                } catch (e) {
+                    console.error('initSendOTP error:', e);
                 }
-            } else {
-                reportDiagnostic('INIT_NO_FUNCTION', { initSendOTPType: typeof window.initSendOTP });
             }
         };
 
-        if (window.initSendOTP) {
-            initMSG91();
+        if (typeof window.initSendOTP === 'function') {
+            initScript();
         } else {
-            const existingScript = document.querySelector('script[src="https://verify.msg91.com/otp-provider.js"]');
-            if (!existingScript) {
-                const script = document.createElement('script');
-                script.src = 'https://verify.msg91.com/otp-provider.js';
-                script.type = 'text/javascript';
-                script.async = true;
-                script.onload = () => {
-                    reportDiagnostic('SCRIPT_LOADED', {});
-                    initMSG91();
-                };
-                script.onerror = (e) => {
-                    reportDiagnostic('SCRIPT_LOAD_FAILED', { message: e?.message || 'unknown' });
-                };
-                document.body.appendChild(script);
-            } else {
-                existingScript.addEventListener('load', initMSG91);
-            }
+            (function loadOtpScript(urls) {
+                let i = 0;
+                function attempt() {
+                    const existing = document.querySelector(`script[src="${urls[i]}"]`);
+                    if (existing) {
+                        initScript();
+                        return;
+                    }
+                    const s = document.createElement('script');
+                    s.src = urls[i];
+                    s.async = true;
+                    s.onload = () => {
+                        initScript();
+                    };
+                    s.onerror = () => {
+                        i++;
+                        if (i < urls.length) {
+                            attempt();
+                        }
+                    };
+                    document.head.appendChild(s);
+                }
+                attempt();
+            })([
+                'https://verify.msg91.com/otp-provider.js',
+                'https://verify.phone91.com/otp-provider.js'
+            ]);
         }
     }, []);
 
@@ -160,14 +208,10 @@ export default function AuthPage({ initialMode = 'login' }) {
         setOtpSent(false);
     };
 
-    const handleGuestAppointment = () => {
-        setShowGuestWarning(true);
-    };
+    const handleGuestAppointment = () => setShowGuestWarning(true);
+    const confirmGuestAppointment = () => router.push('/appointments/guest');
 
-    const confirmGuestAppointment = () => {
-        router.push('/appointments/guest');
-    };
-
+    // Send OTP using window.sendOtp
     const handleSendOTP = async () => {
         setErrors({});
         setSuccessMessage('');
@@ -178,7 +222,7 @@ export default function AuthPage({ initialMode = 'login' }) {
             return;
         }
 
-        if (authMode === 'signup' && !formData.fullName) {
+        if (authMode === 'signup' && !formData.fullName.trim()) {
             setErrors({ fullName: 'Please enter your name' });
             return;
         }
@@ -187,78 +231,44 @@ export default function AuthPage({ initialMode = 'login' }) {
 
         const identifier = cleanPhone.length === 10 ? `91${cleanPhone}` : cleanPhone;
 
-        // Poll until window.sendOtp is ready (handles async SDK load on production)
-        const waitAndSendOtp = (retries = 50) => {
+        const attemptSend = (retries = 30) => {
             if (typeof window !== 'undefined' && typeof window.sendOtp === 'function') {
-                let responded = false;
-
-                const timeoutId = setTimeout(() => {
-                    if (!responded) {
+                window.sendOtp(
+                    identifier,
+                    (data) => {
+                        console.log('sendOtp success:', data);
+                        setOtpSent(true);
+                        setSuccessMessage('OTP sent successfully!');
                         setLoading(false);
-                        setErrors({ general: 'OTP request timed out. Please try again.' });
+                    },
+                    (error) => {
+                        console.error('sendOtp error:', error);
+                        const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to send OTP');
+                        setErrors({ general: errMsg });
+                        setLoading(false);
                     }
-                }, 10000);
-
-                try {
-                    window.sendOtp(
-                        identifier,
-                        (data) => {
-                            responded = true;
-                            clearTimeout(timeoutId);
-                            setOtpSent(true);
-                            setSuccessMessage('OTP sent successfully!');
-                            setLoading(false);
-                        },
-                        (error) => {
-                            responded = true;
-                            clearTimeout(timeoutId);
-                            const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Failed to send OTP');
-                            setErrors({ general: errMsg });
-                            setLoading(false);
-                        }
-                    );
-                } catch (err) {
-                    responded = true;
-                    clearTimeout(timeoutId);
-                    setErrors({ general: err.message || 'Error sending OTP' });
-                    setLoading(false);
-                }
+                );
             } else if (retries > 0) {
-                // SDK not ready yet — retry after 100ms (up to 5s total)
-                setTimeout(() => waitAndSendOtp(retries - 1), 100);
+                setTimeout(() => attemptSend(retries - 1), 150);
             } else {
-                // Report exhausted retries to server log
-                try {
-                    fetch('/api/auth/debug', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({
-                            event: 'SEND_OTP_SDK_NOT_READY',
-                            details: {
-                                initSendOTPType: typeof window.initSendOTP,
-                                sendOtpType: typeof window.sendOtp,
-                                verifyOtpType: typeof window.verifyOtp
-                            }
-                        })
-                    }).catch(() => {});
-                } catch (_) {}
                 setLoading(false);
-                setErrors({ general: 'OTP service failed to load. Please refresh the page and try again.' });
+                setErrors({ general: 'OTP service is initializing. Please try again in a few seconds.' });
             }
         };
 
-        waitAndSendOtp();
+        attemptSend();
     };
 
+    // Verify OTP using window.verifyOtp
     const handleVerifyOTP = async () => {
         setErrors({});
 
         if (!formData.otp || formData.otp.length < 4) {
-            setErrors({ otp: 'Please enter a valid 4-digit OTP' });
+            setErrors({ otp: 'Please enter a valid OTP' });
             return;
         }
 
-        if (authMode === 'signup' && !formData.fullName) {
+        if (authMode === 'signup' && !formData.fullName.trim()) {
             setErrors({ fullName: 'Please enter your name' });
             return;
         }
@@ -266,84 +276,34 @@ export default function AuthPage({ initialMode = 'login' }) {
         setLoading(true);
 
         if (typeof window !== 'undefined' && typeof window.verifyOtp === 'function') {
-            let responded = false;
-
-            const timeoutId = setTimeout(() => {
-                if (!responded) {
+            window.verifyOtp(
+                formData.otp,
+                (data) => {
+                    console.log('verifyOtp success callback:', data);
+                    // handleVerificationSuccess is triggered via configuration.success or directly here
+                    handleVerificationSuccess(data);
+                },
+                (error) => {
+                    console.error('verifyOtp error:', error);
+                    const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Invalid OTP');
+                    setErrors({ general: errMsg });
                     setLoading(false);
-                    setErrors({ general: 'OTP verification timed out. Please try again.' });
                 }
-            }, 10000);
-
-            try {
-                window.verifyOtp(
-                    formData.otp,
-                    async (data) => {
-                        responded = true;
-                        clearTimeout(timeoutId);
-                        try {
-                            const cleanPhone = formData.phone.replace(/\D/g, '').slice(-10);
-                            const requestBody = {
-                                phone: cleanPhone,
-                                otp: formData.otp,
-                                rememberMe: formData.rememberMe,
-                                msg91Data: data
-                            };
-
-                            if (authMode === 'signup') {
-                                requestBody.fullName = formData.fullName;
-                            }
-
-                            const response = await fetch('/api/auth/verify-otp', {
-                                method: 'POST',
-                                headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify(requestBody)
-                            });
-
-                            const resData = await response.json();
-
-                            if (!response.ok) {
-                                throw new Error(resData.error || 'Verification failed on server');
-                            }
-
-                            localStorage.setItem('authToken', resData.token);
-                            setSuccessMessage(resData.message || 'Authentication successful!');
-
-                            setTimeout(() => {
-                                router.push('/dashboard');
-                            }, 1000);
-                        } catch (error) {
-                            setErrors({ general: error.message });
-                            setLoading(false);
-                        }
-                    },
-                    (error) => {
-                        responded = true;
-                        clearTimeout(timeoutId);
-                        const errMsg = typeof error === 'string' ? error : (error?.message || error?.description || 'Invalid OTP');
-                        setErrors({ general: errMsg });
-                        setLoading(false);
-                    }
-                );
-            } catch (err) {
-                responded = true;
-                clearTimeout(timeoutId);
-                setErrors({ general: err.message || 'Error verifying OTP' });
-                setLoading(false);
-            }
+            );
         } else {
             setLoading(false);
-            setErrors({ general: 'OTP service is not available' });
+            setErrors({ general: 'OTP verification method not ready. Please refresh and try again.' });
         }
     };
 
+    // Resend OTP using window.retryOtp
     const handleResendOTP = async () => {
         setLoading(true);
         setErrors({});
 
         if (typeof window !== 'undefined' && typeof window.retryOtp === 'function') {
             window.retryOtp(
-                '11',
+                '11', // Retry via SMS
                 (data) => {
                     setSuccessMessage('OTP resent successfully!');
                     setLoading(false);
@@ -355,8 +315,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                 }
             );
         } else {
-            setLoading(false);
-            setErrors({ general: 'OTP service is not available' });
+            handleSendOTP();
         }
     };
 
@@ -364,7 +323,6 @@ export default function AuthPage({ initialMode = 'login' }) {
         <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden">
                 <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white text-center">
-                    {/* Logo */}
                     <div className="flex justify-center mb-4">
                         <Image
                             src="/logo.png"
@@ -384,25 +342,19 @@ export default function AuthPage({ initialMode = 'login' }) {
                 <div className="p-6">
                     <div className="flex mb-6 border-b">
                         <button
-                            onClick={() => {
-                                setAuthMode('login');
-                                resetForm();
-                            }}
+                            onClick={() => { setAuthMode('login'); resetForm(); }}
                             className={`flex-1 py-2 font-semibold transition ${authMode === 'login'
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500'
                                 }`}
                         >
                             Login
                         </button>
                         <button
-                            onClick={() => {
-                                setAuthMode('signup');
-                                resetForm();
-                            }}
+                            onClick={() => { setAuthMode('signup'); resetForm(); }}
                             className={`flex-1 py-2 font-semibold transition ${authMode === 'signup'
-                                    ? 'text-blue-600 border-b-2 border-blue-600'
-                                    : 'text-gray-500'
+                                ? 'text-blue-600 border-b-2 border-blue-600'
+                                : 'text-gray-500'
                                 }`}
                         >
                             Sign Up
@@ -472,6 +424,16 @@ export default function AuthPage({ initialMode = 'login' }) {
                         </div>
                     ) : (
                         <div>
+                            <p className="text-sm text-gray-500 mb-4">
+                                OTP sent to <span className="font-semibold text-gray-800">+91 {formData.phone}</span>.{' '}
+                                <button
+                                    onClick={() => setOtpSent(false)}
+                                    className="text-blue-600 hover:underline"
+                                >
+                                    Change number
+                                </button>
+                            </p>
+
                             <div className="mb-4">
                                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                                     Enter OTP *
@@ -481,8 +443,9 @@ export default function AuthPage({ initialMode = 'login' }) {
                                     name="otp"
                                     value={formData.otp}
                                     onChange={handleInputChange}
-                                    placeholder="Enter 4-digit OTP"
-                                    maxLength="4"
+                                    placeholder="Enter OTP"
+                                    maxLength="6"
+                                    inputMode="numeric"
                                     className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-center text-lg font-semibold tracking-widest text-gray-800"
                                 />
                                 {errors.otp && <p className="text-red-600 text-xs mt-1">{errors.otp}</p>}
@@ -510,7 +473,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                             <button
                                 onClick={handleResendOTP}
                                 disabled={loading}
-                                className="w-full text-blue-600 py-2 text-sm hover:underline"
+                                className="w-full text-blue-600 py-2 text-sm hover:underline disabled:opacity-50 disabled:cursor-not-allowed"
                             >
                                 Resend OTP
                             </button>
@@ -528,7 +491,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                 </div>
             </div>
 
-            {/* Guest Warning Modal */}
             {showGuestWarning && (
                 <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
                     <div className="bg-white rounded-lg p-6 max-w-md">
@@ -537,7 +499,7 @@ export default function AuthPage({ initialMode = 'login' }) {
                             <h3 className="font-bold text-lg">Guest Appointment</h3>
                         </div>
                         <p className="text-gray-700 mb-4">
-                            As a guest, you won't be able to view your appointment history or receive updates.
+                            As a guest, you won&apos;t be able to view your appointment history or receive updates.
                             We recommend creating an account for a better experience.
                         </p>
                         <div className="flex gap-3">
@@ -557,8 +519,6 @@ export default function AuthPage({ initialMode = 'login' }) {
                     </div>
                 </div>
             )}
-            {/* Hidden container for MSG91 Captcha if required */}
-            <div id="msg91-captcha-render" className="hidden"></div>
         </div>
     );
 }
