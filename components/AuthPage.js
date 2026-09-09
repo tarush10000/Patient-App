@@ -1,9 +1,9 @@
 'use client';
 
 import { AlertCircle, Phone, User } from 'lucide-react';
-import { useRouter } from 'next/navigation';
-import { useEffect, useState, useRef } from 'react';
 import Image from 'next/image';
+import { useRouter } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 
 export default function AuthPage({ initialMode = 'login' }) {
     const router = useRouter();
@@ -445,15 +445,15 @@ export default function AuthPage({ initialMode = 'login' }) {
 
                             <div className="mb-4">
                                 <label className="block text-xs font-semibold text-slate-700 uppercase tracking-wider mb-1.5">
-                                    Enter 6-Digit OTP *
+                                    Enter 4-Digit OTP *
                                 </label>
                                 <input
                                     type="text"
                                     name="otp"
                                     value={formData.otp}
                                     onChange={handleInputChange}
-                                    placeholder="• • • • • •"
-                                    maxLength="6"
+                                    placeholder="• • • •"
+                                    maxLength="4"
                                     inputMode="numeric"
                                     className="w-full px-4 py-3 border border-slate-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#173456] focus:border-transparent text-center text-lg font-semibold tracking-widest text-slate-800 bg-slate-50/50"
                                 />

@@ -1,6 +1,6 @@
 import connectDB from '@/lib/mongodb';
-import { calculateAppointmentTime, getSlotCapacity } from '@/lib/slotConfig';
 import { sendAppointmentConfirmationSMS } from '@/lib/msg91Sms';
+import { calculateAppointmentTime, getSlotCapacity } from '@/lib/slotConfig';
 import { authenticate } from '@/middleware/auth';
 import Appointment from '@/models/Appointment';
 import { NextResponse } from 'next/server';

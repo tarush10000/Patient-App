@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
-import { X, AlertTriangle } from 'lucide-react';
 import { api } from '@/lib/api';
+import { AlertTriangle, X } from 'lucide-react';
+import { useState } from 'react';
 
 export default function EmergencyAppointmentModal({ onClose, onSuccess }) {
     const [formData, setFormData] = useState({

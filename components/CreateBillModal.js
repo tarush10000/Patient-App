@@ -1,7 +1,7 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Calendar, User, DollarSign } from 'lucide-react';
+import { DollarSign, Plus, Trash2, User, X } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function CreateBillModal({ isOpen, onClose, onSave, editingBill = null }) {
     const [selectedPatient, setSelectedPatient] = useState(null);

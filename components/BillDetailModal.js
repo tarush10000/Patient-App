@@ -1,6 +1,6 @@
-import { useRef } from 'react';
 import { toPng } from 'html-to-image';
 import jsPDF from 'jspdf';
+import { useRef } from 'react';
 
 const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
     const billContentRef = useRef(null);
