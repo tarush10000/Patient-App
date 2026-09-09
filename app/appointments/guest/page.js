@@ -1,7 +1,8 @@
 'use client';
 
 import { getSlotGap } from '@/lib/slotConfig';
-import { Calendar, ChevronLeft, FileText, Phone, User } from 'lucide-react';
+import { Calendar, CheckCircle, ChevronLeft, FileText, Phone, User } from 'lucide-react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
@@ -23,6 +24,8 @@ export default function GuestAppointmentPage() {
 
     const [success, setSuccess] = useState('');
     const [duplicateWarning, setDuplicateWarning] = useState(null);
+    const [bookingComplete, setBookingComplete] = useState(false);
+    const [confirmedAppointment, setConfirmedAppointment] = useState(null);
 
     const consultationTypes = [
         { value: 'routine-checkup', label: 'Routine Check-up' },
@@ -139,16 +142,19 @@ export default function GuestAppointmentPage() {
                 throw error;
             }
 
-            setSuccess('Appointment booked successfully! Redirecting...');
-            setTimeout(() => {
-                router.push('/');
-            }, 2000);
+            setConfirmedAppointment(formData);
+            setBookingComplete(true);
 
         } catch (error) {
             if (error.data && error.data.errorCode === 'DUPLICATE_APPOINTMENT') {
                 setDuplicateWarning({
                     show: true,
-                    existingName: error.data.existingFullName
+                    existingName: error.data.existingFullName,
+                    existingPhone: error.data.existingPhone,
+                    existingAppointmentDate: error.data.existingAppointmentDate,
+                    existingTimeSlot: error.data.existingTimeSlot,
+                    existingConsultationType: error.data.existingConsultationType,
+                    existingStatus: error.data.existingStatus
                 });
             } else {
                 setErrors({ general: error.message });
@@ -176,10 +182,8 @@ export default function GuestAppointmentPage() {
                 throw new Error(data.error || 'Failed to replace booking');
             }
 
-            setSuccess('Appointment replaced successfully! Redirecting...');
-            setTimeout(() => {
-                router.push('/');
-            }, 2000);
+            setConfirmedAppointment(formData);
+            setBookingComplete(true);
 
         } catch (error) {
             setErrors({ general: error.message });
@@ -187,24 +191,68 @@ export default function GuestAppointmentPage() {
         }
     };
 
+    const to24HourTime = (value) => {
+        const [time, period] = value.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
+
+    const addToCalendar = () => {
+        const start = new Date(`${confirmedAppointment.appointmentDate}T${to24HourTime(confirmedAppointment.timeSlot.split(' - ')[0])}:00`);
+        const end = new Date(`${confirmedAppointment.appointmentDate}T${to24HourTime(confirmedAppointment.timeSlot.split(' - ')[1])}:00`);
+        const formatCalendarDate = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const calendar = [
+            'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT',
+            `DTSTART:${formatCalendarDate(start)}`, `DTEND:${formatCalendarDate(end)}`,
+            `SUMMARY:Women Wellness Center appointment for ${confirmedAppointment.fullName}`,
+            'END:VEVENT', 'END:VCALENDAR'
+        ].join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar' }));
+        link.download = 'appointment.ics';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
+
     return (
-        <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
+        <div className="min-h-screen bg-[#f8fafc] p-4">
             <div className="max-w-2xl mx-auto">
                 <button
                     onClick={() => router.back()}
-                    className="mb-4 flex items-center text-gray-600 hover:text-gray-800 transition"
+                    className="mb-4 flex items-center text-[#5a6e85] hover:text-[#0e8a7d] transition"
                 >
                     <ChevronLeft size={20} />
                     <span className="ml-1">Back</span>
                 </button>
 
-                <div className="bg-white rounded-2xl shadow-xl overflow-hidden">
-                    <div className="bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white">
-                        <h1 className="text-2xl font-bold">Guest Appointment Booking</h1>
+                <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)] overflow-hidden">
+                    <div className="bg-[#173456] p-6 text-white">
+                        <h1 className="text-2xl font-bold text-white">Guest Appointment Booking</h1>
                         <p className="text-sm mt-1 opacity-90">Book an appointment without creating an account</p>
                     </div>
 
                     <form onSubmit={handleSubmit} className="p-6 text-gray-700">
+                        {bookingComplete ? (
+                            <div className="py-8 text-center">
+                                <CheckCircle className="mx-auto mb-4 text-[#0e8a7d]" size={48} />
+                                <h2 className="text-2xl font-bold text-[#173456] mb-2">Appointment confirmed</h2>
+                                <p className="text-[#5a6e85] mb-6">Your appointment is booked. We will send updates by SMS and WhatsApp.</p>
+                                <div className="text-left bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4 space-y-2 mb-6">
+                                    <p><strong>Patient:</strong> {confirmedAppointment.fullName}</p>
+                                    <p><strong>Phone:</strong> +91 {confirmedAppointment.phone}</p>
+                                    <p><strong>Date:</strong> {confirmedAppointment.appointmentDate}</p>
+                                    <p><strong>Time:</strong> {confirmedAppointment.timeSlot}</p>
+                                    <p><strong>Consultation:</strong> {consultationTypes.find(type => type.value === confirmedAppointment.consultationType)?.label || confirmedAppointment.consultationType}</p>
+                                    <p className="text-[#0e8a7d] font-medium">SMS notification: queued</p>
+                                </div>
+                                <div className="flex gap-3">
+                                    <button type="button" onClick={addToCalendar} className="flex-1 px-4 py-3 border border-[#173456] text-[#173456] rounded-md font-semibold">Add to calendar</button>
+                                    <button type="button" onClick={() => router.push('/')} className="flex-1 px-4 py-3 bg-[#0e8a7d] text-white rounded-md font-semibold">Back to dashboard</button>
+                                </div>
+                            </div>
+                        ) : <>
                         {errors.general && (
                             <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
                                 {errors.general}
@@ -224,7 +272,7 @@ export default function GuestAppointmentPage() {
                                     Full Name *
                                 </label>
                                 <div className="relative">
-                                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#0e8a7d]" size={18} />
                                     <input
                                         type="text"
                                         name="fullName"
@@ -243,7 +291,7 @@ export default function GuestAppointmentPage() {
                                     Phone Number *
                                 </label>
                                 <div className="relative">
-                                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                    <Phone className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#0e8a7d]" size={18} />
                                     <input
                                         type="tel"
                                         name="phone"
@@ -263,7 +311,7 @@ export default function GuestAppointmentPage() {
                                 Appointment Date *
                             </label>
                             <div className="relative">
-                                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                                <Calendar className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#0e8a7d]" size={18} />
                                 <input
                                     type="date"
                                     name="appointmentDate"
@@ -387,18 +435,30 @@ export default function GuestAppointmentPage() {
                             </div>
                         </div>
 
+                        {formData.fullName && formData.phone && formData.appointmentDate && formData.timeSlot && formData.consultationType && (
+                            <div className="mb-6 rounded-xl border border-[#bce8e3] bg-[#e6f6f4] p-4 text-sm text-[#173456]">
+                                <p className="font-bold mb-2">Appointment summary</p>
+                                <p>Patient: {formData.fullName}</p>
+                                <p>Phone: {formData.phone}</p>
+                                <p>Date: {formData.appointmentDate}</p>
+                                <p>Time: {formData.timeSlot}</p>
+                                <p>Consultation: {consultationTypes.find(type => type.value === formData.consultationType)?.label}</p>
+                            </div>
+                        )}
+
                         <button
                             type="submit"
                             disabled={loading}
-                            className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition disabled:opacity-50"
+                            className="w-full bg-[#0e8a7d] text-white py-3 rounded-md font-semibold hover:bg-[#0b7066] transition disabled:opacity-50"
                         >
                             {loading ? 'Booking...' : 'Book Appointment'}
                         </button>
 
                         <p className="text-sm text-gray-600 mt-4 text-center">
-                            Note: As a guest, you won't be able to modify this appointment later.
-                            Consider <a href="/" className="text-blue-600 hover:underline">creating an account</a> for full access.
+                            Note: As a guest, you won&apos;t be able to modify this appointment later.
+                            Consider <Link href="/" className="text-[#0e8a7d] hover:underline">creating an account</Link> for full access.
                         </p>
+                        </>}
                     </form>
                 </div>
             </div>
@@ -413,6 +473,12 @@ export default function GuestAppointmentPage() {
                         <p className="mb-4 text-gray-600 font-medium">
                             This phone number already has an appointment booked for <span className="text-gray-900 font-bold whitespace-nowrap">{formData.appointmentDate}</span>.
                         </p>
+                        <div className="text-left bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 mb-4 text-sm space-y-1">
+                            <p><strong>Existing patient:</strong> {duplicateWarning.existingName}</p>
+                            <p><strong>Date:</strong> {duplicateWarning.existingAppointmentDate ? new Date(duplicateWarning.existingAppointmentDate).toLocaleDateString('en-IN') : formData.appointmentDate}</p>
+                            <p><strong>Time:</strong> {duplicateWarning.existingTimeSlot || 'Unavailable'}</p>
+                            <p><strong>Status:</strong> {duplicateWarning.existingStatus || 'Active'}</p>
+                        </div>
                         <p className="mb-4 text-gray-800 text-sm font-semibold bg-red-50 p-3 outline outline-1 outline-red-200 rounded-lg">
                             If you proceed, your old appointment will be deleted!
                         </p>

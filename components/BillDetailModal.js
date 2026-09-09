@@ -55,7 +55,12 @@ const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
             const img = new Image();
             img.src = dataUrl;
 
-            img.onload = () => {
+            await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = reject;
+            });
+
+            {
                 const imgWidth = img.width;
                 const imgHeight = img.height;
                 
@@ -79,7 +84,7 @@ const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
                 }
 
                 pdf.save(`Bill_${billNo}.pdf`);
-            };
+            }
 
         } catch (error) {
             console.error('Error generating PDF:', error);
@@ -149,15 +154,15 @@ const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-            <div className="bg-white rounded-lg max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl max-w-4xl w-full max-h-[90vh] overflow-hidden shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
                 {/* Header with buttons */}
                 <div className="flex items-center justify-between p-4 border-b modal-header-buttons">
-                    <h2 className="text-xl font-semibold">Bill Details</h2>
+                    <h2 className="text-xl font-bold text-[#173456]">Bill Details</h2>
 
                     <div className="flex gap-2">
                         <button
                             onClick={handleDownloadPDF}
-                            className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#173456] text-white rounded-md hover:bg-[#0f2238] transition"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 10v6m0 0l-3-3m3 3l3-3m2 8H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
@@ -167,7 +172,7 @@ const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
 
                         <button
                             onClick={handlePrint}
-                            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition"
+                            className="flex items-center gap-2 px-4 py-2 bg-[#0e8a7d] text-white rounded-md hover:bg-[#0b7066] transition"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 17h2a2 2 0 002-2v-4a2 2 0 00-2-2H5a2 2 0 00-2 2v4a2 2 0 002 2h2m2 4h6a2 2 0 002-2v-4a2 2 0 00-2-2H9a2 2 0 00-2 2v4a2 2 0 002 2zm8-12V5a2 2 0 00-2-2H9a2 2 0 00-2 2v4h10z" />
@@ -177,7 +182,7 @@ const BillDetailModal = ({ bill, clinicInfo, onClose }) => {
 
                         <button
                             onClick={handleShare}
-                            className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition"
+                            className="flex items-center gap-2 px-4 py-2 bg-white text-[#173456] border border-[#173456] rounded-md hover:bg-[#f1f5f9] transition"
                         >
                             <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m0 2.684l6.632 3.316m-6.632-6l6.632-3.316m0 0a3 3 0 105.367-2.684 3 3 0 00-5.367 2.684zm0 9.316a3 3 0 105.368 2.684 3 3 0 00-5.368-2.684z" />

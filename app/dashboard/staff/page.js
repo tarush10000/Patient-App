@@ -135,7 +135,7 @@ export default function StaffDashboardPage() {
         try {
             await api.updateAppointment(appointmentId, { status: newStatus });
             if (newStatus === 'seen') {
-                alert('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
+                alert('Patient marked as seen. Thank you message sent via WhatsApp.');
             }
             fetchDashboardData();
         } catch (error) {
@@ -165,7 +165,7 @@ export default function StaffDashboardPage() {
         try {
             await api.delayAppointment(appointmentId, minutes);
             fetchDashboardData();
-            alert(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
+            alert(`Appointment delayed by ${minutes} minutes. Patient notified.`);
         } catch (error) {
             alert('Failed to delay appointment: ' + error.message);
         }
@@ -199,35 +199,35 @@ export default function StaffDashboardPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[#f8fafc]">
             <Header />
 
             <main className="max-w-6xl mx-auto p-4 pb-24">
                 <div className="flex justify-between items-center mb-6">
                     <div>
-                        <h2 className="text-3xl font-bold text-gray-800">
+                        <h2 className="text-3xl font-bold text-[#173456]">
                             {currentUser?.role === 'admin' ? 'Admin' : 'Reception'} Dashboard
                         </h2>
-                        <p className="text-gray-600 mt-1">Today's Schedule</p>
+                        <p className="text-[#5a6e85] mt-1">Today&apos;s Schedule</p>
                     </div>
                     <div className="flex gap-2">
                         <button
                             onClick={() => setShowEmergencyModal(true)}
-                            className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700 transition flex items-center gap-2"
+                            className="bg-[#d3455b] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#bc364b] transition flex items-center gap-2"
                         >
                             <AlertTriangle size={20} />
                             <span className="hidden sm:inline">Emergency</span>
                         </button>
                         <button
                             onClick={() => setShowBookingModal(true)}
-                            className="bg-blue-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-blue-700 transition flex items-center gap-2"
+                            className="bg-[#173456] text-white px-4 py-2 rounded-md font-semibold hover:bg-[#0f2238] transition flex items-center gap-2 shadow-[0_1px_3px_rgba(15,23,42,0.06)]"
                         >
                             <Plus size={20} />
                             <span className="hidden sm:inline">Add Appointment</span>
@@ -237,7 +237,7 @@ export default function StaffDashboardPage() {
 
                 {/* Statistics Cards */}
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-4 mb-6">
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-xl p-4 text-white shadow-lg">
+                    <div className="bg-[#173456] rounded-xl p-4 text-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
                         <div className="flex items-center gap-2 mb-2">
                             <Calendar size={20} />
                             <p className="text-sm font-medium opacity-90">Total Today</p>
@@ -245,7 +245,7 @@ export default function StaffDashboardPage() {
                         <p className="text-3xl font-bold">{stats.todayTotal}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-xl p-4 text-white shadow-lg">
+                    <div className="bg-[#0e8a7d] rounded-xl p-4 text-white shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
                         <div className="flex items-center gap-2 mb-2">
                             <CheckCircle size={20} />
                             <p className="text-sm font-medium opacity-90">Completed</p>
@@ -253,22 +253,22 @@ export default function StaffDashboardPage() {
                         <p className="text-3xl font-bold">{stats.todayCompleted}</p>
                     </div>
 
-                    <div className="bg-gradient-to-br from-orange-500 to-orange-600 rounded-xl p-4 text-white shadow-lg">
+                    <div className="bg-white border border-[#e2e8f0] rounded-xl p-4 text-[#173456] shadow-[0_1px_3px_rgba(15,23,42,0.06)]">
                         <div className="flex items-center gap-2 mb-2">
-                            <Clock size={20} />
-                            <p className="text-sm font-medium opacity-90">Pending</p>
+                            <Clock size={20} className="text-[#0e8a7d]" />
+                            <p className="text-sm font-medium text-[#5a6e85]">Pending</p>
                         </div>
-                        <p className="text-3xl font-bold">{stats.todayPending}</p>
+                        <p className="text-3xl font-bold text-[#173456]">{stats.todayPending}</p>
                     </div>
                 </div>
 
                 {/* Today's Appointments - Grouped by Time Slot */}
-                <h3 className="text-xl font-bold text-gray-800 mb-4">Today's Appointments by Time Slot</h3>
+                <h3 className="text-xl font-bold text-[#173456] mb-4">Today&apos;s Appointments by Time Slot</h3>
 
                 {todayAppointments.length === 0 && emergencyAppointments.length === 0 ? (
                     <div className="bg-white rounded-xl shadow-md p-12 text-center">
                         <Calendar size={48} className="mx-auto text-gray-400 mb-4" />
-                        <p className="text-gray-500 text-lg">No appointments scheduled for today</p>
+                        <p className="text-[#5a6e85] text-lg">No appointments scheduled for today</p>
                     </div>
                 ) : (
                     <div className="space-y-6">
@@ -280,61 +280,61 @@ export default function StaffDashboardPage() {
                                 count={appointments.length}
                                 icon={<Clock size={20} />}
                                 defaultOpen={true}
-                                colorClass="from-blue-600 to-blue-700"
+                                colorClass="bg-[#173456]"
                             >
                                 <div className="divide-y divide-gray-200">
                                     {appointments.map((apt, index) => (
-                                        <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-orange-500' : 'hover:bg-gray-50'}`}>
+                                        <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-[#fdf2f4] hover:bg-[#fbe8eb] border-l-4 border-[#d3455b]' : 'hover:bg-[#f8fafc]'}`}>
                                             <div className="flex justify-between items-start gap-4">
                                                 <div className="flex-1">
                                                     <div className="flex items-center gap-3 mb-2">
-                                                        <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${apt.isEmergency ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                        <span className={`flex items-center justify-center w-8 h-8 rounded-full font-bold text-sm ${apt.isEmergency ? 'bg-[#fbe8eb] text-[#d3455b]' : 'bg-[#e6f6f4] text-[#0e8a7d]'}`}>
                                                             {apt.isEmergency ? <AlertTriangle size={16} /> : index + 1}
                                                         </span>
                                                         <div>
                                                             <div className="flex items-center gap-2">
-                                                                <h5 className="font-bold text-gray-800 text-lg">{apt.fullName}</h5>
+                                                                <h5 className="font-bold text-[#173456] text-lg">{apt.fullName}</h5>
                                                                 {/* Booked By Indicator */}
                                                                 {apt.createdBy?.role === 'patient' ? (
-                                                                    <span title="Booked by Patient" className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200 flex items-center gap-1">
+                                                                    <span title="Booked by Patient" className="text-[#0e8a7d] bg-[#e6f6f4] px-2 py-0.5 rounded text-xs border border-[#bce8e3] flex items-center gap-1">
                                                                         <User size={12} /> Patient
                                                                     </span>
                                                                 ) : (
-                                                                    <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
+                                                                    <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-[#234c7a] bg-[#f1f5f9] px-2 py-0.5 rounded text-xs border border-[#e2e8f0] flex items-center gap-1">
                                                                         <Users size={12} /> {apt.createdBy?.role === 'admin' ? 'Admin' : 'Staff'}
                                                                     </span>
                                                                 )}
                                                             </div>
-                                                            <p className="text-sm text-gray-600">{apt.phone}</p>
+                                                            <p className="text-sm text-[#5a6e85]">{apt.phone}</p>
                                                         </div>
                                                     </div>
 
                                                     <div className="ml-11 space-y-1">
-                                                        <p className="text-sm text-gray-600">
+                                                        <p className="text-sm text-[#5a6e85]">
                                                             <span className="font-semibold">Type:</span> {apt.consultationType?.replace(/-/g, ' ').replace(/\b\w/g, l => l.toUpperCase())}
                                                         </p>
                                                         {apt.isEmergency ? (
-                                                            <p className="text-sm text-orange-600 font-bold flex items-center gap-1">
+                                                            <p className="text-sm text-[#d3455b] font-bold flex items-center gap-1">
                                                                 <AlertTriangle size={14} /> Emergency - {apt.timeSlot}
                                                             </p>
                                                         ) : (
-                                                            <p className="text-sm text-blue-600 font-medium">
+                                                            <p className="text-sm text-[#0e8a7d] font-medium">
                                                                 Approx: {calculateApproxTime(apt.timeSlot, index, apt)}
                                                             </p>
                                                         )}
                                                         {apt.additionalMessage && (
-                                                            <p className="text-sm text-gray-600 mt-2">
+                                                            <p className="text-sm text-[#5a6e85] mt-2">
                                                                 <span className="font-semibold">Note:</span> {apt.additionalMessage}
                                                             </p>
                                                         )}
                                                         <div className="flex items-center gap-2 mt-2">
-                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${apt.status === 'upcoming' ? 'bg-orange-100 text-orange-700' :
-                                                                apt.status === 'seen' ? 'bg-green-100 text-green-700' :
-                                                                    'bg-red-100 text-red-700'
+                                                            <span className={`px-3 py-1 rounded-full text-xs font-semibold ${apt.status === 'upcoming' ? 'bg-[#f1f5f9] text-[#234c7a]' :
+                                                                apt.status === 'seen' ? 'bg-[#e6f6f4] text-[#0e8a7d]' :
+                                                                    'bg-[#fdf2f4] text-[#d3455b]'
                                                                 }`}>
                                                                 {apt.status === 'upcoming' ? '⏳ Upcoming' :
-                                                                    apt.status === 'seen' ? '✅ Seen' :
-                                                                        '❌ Cancelled'}
+                                                                    apt.status === 'seen' ? 'Seen' :
+                                                                        'Cancelled'}
                                                             </span>
                                                         </div>
                                                     </div>
@@ -346,7 +346,7 @@ export default function StaffDashboardPage() {
                                                         <>
                                                             <button
                                                                 onClick={() => handleStatusUpdate(apt._id, 'seen')}
-                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium"
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-[#0e8a7d] text-white rounded-md hover:bg-[#0b7066] transition text-sm font-medium"
                                                             >
                                                                 <CheckCircle size={16} />
                                                                 Mark Seen
@@ -360,7 +360,7 @@ export default function StaffDashboardPage() {
                                                                 <div className="flex gap-2">
                                                                     <button
                                                                         onClick={() => handleDelayAppointment(apt._id, 15)}
-                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition text-xs font-medium border border-[#e2e8f0]"
                                                                         title="Delay by 15 minutes"
                                                                     >
                                                                         <ClockIcon size={14} />
@@ -368,7 +368,7 @@ export default function StaffDashboardPage() {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleDelayAppointment(apt._id, 30)}
-                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition text-xs font-medium border border-[#e2e8f0]"
                                                                         title="Delay by 30 minutes"
                                                                     >
                                                                         <ClockIcon size={14} />
@@ -376,7 +376,7 @@ export default function StaffDashboardPage() {
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleDelayAppointment(apt._id, 60)}
-                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-yellow-50 text-yellow-700 rounded-lg hover:bg-yellow-100 transition text-xs font-medium border border-yellow-200"
+                                                                        className="flex items-center justify-center gap-1 px-3 py-2 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition text-xs font-medium border border-[#e2e8f0]"
                                                                         title="Delay by 1 hour"
                                                                     >
                                                                         <ClockIcon size={14} />
@@ -386,7 +386,7 @@ export default function StaffDashboardPage() {
                                                             )}
                                                             <button
                                                                 onClick={() => handleAddBill(apt)}
-                                                                className="flex items-center justify-center gap-1 px-3 py-2 bg-green-50 text-green-700 rounded-lg hover:bg-green-100 transition text-xs font-medium border border-green-200"
+                                                                className="flex items-center justify-center gap-1 px-3 py-2 bg-[#e6f6f4] text-[#0e8a7d] rounded-md hover:bg-[#d2f0ec] transition text-xs font-medium border border-[#bce8e3]"
                                                                 title="Add Bill"
                                                             >
                                                                 <DollarSign size={14} />
@@ -394,7 +394,7 @@ export default function StaffDashboardPage() {
                                                             </button>
                                                             <button
                                                                 onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
-                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium border border-red-200"
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-[#fdf2f4] text-[#d3455b] rounded-md hover:bg-[#fbe8eb] transition text-sm font-medium border border-[#f2c4cc]"
                                                             >
                                                                 <XCircle size={16} />
                                                                 Cancel
@@ -406,7 +406,7 @@ export default function StaffDashboardPage() {
                                                         <>
                                                             <button
                                                                 onClick={() => handleAddBill(apt)}
-                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
+                                                                className="flex items-center justify-center gap-2 px-4 py-2 bg-[#e6f6f4] text-[#0e8a7d] rounded-md hover:bg-[#d2f0ec] transition text-sm font-medium border border-[#bce8e3]"
                                                             >
                                                                 <DollarSign size={16} />
                                                                 Add Bill
@@ -418,7 +418,7 @@ export default function StaffDashboardPage() {
                                                     {currentUser?.role === 'admin' && (
                                                         <button
                                                             onClick={() => handleDeleteAppointment(apt._id)}
-                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                            className="flex items-center justify-center gap-2 px-4 py-2 bg-[#d3455b] text-white rounded-md hover:bg-[#bc364b] transition text-sm font-medium"
                                                             title="Delete (Admin Only)"
                                                         >
                                                             <Trash2 size={16} />
@@ -428,8 +428,8 @@ export default function StaffDashboardPage() {
 
                                                     {/* Status Message for Non-Upcoming */}
                                                     {currentUser?.role === 'reception' && apt.status !== 'upcoming' && (
-                                                        <div className="text-xs text-gray-400 text-center mt-2 p-2 bg-gray-50 rounded">
-                                                            {apt.status === 'seen' ? 'Completed ✓' : 'Cancelled ✗'}
+                                                        <div className="text-xs text-[#889bb0] text-center mt-2 p-2 bg-[#f8fafc] rounded">
+                                                            {apt.status === 'seen' ? 'Completed' : 'Cancelled'}
                                                         </div>
                                                     )}
                                                 </div>
@@ -464,7 +464,6 @@ export default function StaffDashboardPage() {
                     onSuccess={() => {
                         setShowBookingModal(false);
                         fetchDashboardData();
-                        alert('✅ Appointment created successfully!');
                     }}
                     onCancel={() => setShowBookingModal(false)}
                 />
@@ -475,7 +474,6 @@ export default function StaffDashboardPage() {
                     onSuccess={() => {
                         setShowEmergencyModal(false);
                         fetchDashboardData();
-                        alert('✅ Emergency appointment created successfully!');
                     }}
                     onClose={() => setShowEmergencyModal(false)}
                 />
@@ -605,7 +603,7 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
             await api.createBill(billData);
 
-            alert('✅ Bill created successfully!');
+            alert('Bill created successfully!');
             onSuccess();
         } catch (error) {
             console.error('Bill creation error:', error);
@@ -617,9 +615,9 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl p-6 max-w-3xl w-full max-h-[90vh] overflow-y-auto shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
                 <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold text-gray-800">Add Bill - {appointment.fullName}</h3>
+                    <h3 className="text-xl font-bold text-[#173456]">Add Bill - {appointment.fullName}</h3>
                     <button onClick={onClose} className="text-gray-500 hover:text-gray-700">
                         <X size={24} />
                     </button>
@@ -631,8 +629,8 @@ function BillModal({ appointment, onClose, onSuccess }) {
                         <p className="text-sm text-gray-600">Loading existing bills...</p>
                     </div>
                 ) : existingBills.length > 0 && (
-                    <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                        <h4 className="text-sm font-semibold text-blue-900 mb-2">📋 Existing Bills for this Appointment:</h4>
+                    <div className="mb-4 p-4 bg-[#e6f6f4] border border-[#bce8e3] rounded-lg">
+                        <h4 className="text-sm font-semibold text-[#173456] mb-2">Existing Bills for this Appointment:</h4>
                         {existingBills.map((bill, idx) => {
                             const items = bill.items?.split(',').map(item => item.trim()) || [];
                             return (
@@ -773,21 +771,21 @@ function BillModal({ appointment, onClose, onSuccess }) {
     );
 }
 
-function CollapsibleSection({ title, count, icon, children, defaultOpen = false, colorClass = "from-blue-600 to-blue-700" }) {
+function CollapsibleSection({ title, count, icon, children, defaultOpen = false, colorClass = "bg-[#173456]" }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full bg-gradient-to-r ${colorClass} text-white px-5 py-3 flex justify-between items-center transition hover:opacity-90`}
+                className={`w-full ${colorClass} text-white px-5 py-3 flex justify-between items-center transition hover:opacity-90`}
             >
                 <div className="flex items-center gap-3">
                     {icon}
-                    <h4 className="font-bold text-lg">{title}</h4>
+                    <h4 className="font-bold text-lg text-white" style={{ color: '#ffffff' }}>{title}</h4>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-white">
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold text-white">
                         {count} {count === 1 ? 'patient' : 'patients'}
                     </span>
                     {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

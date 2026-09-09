@@ -2,27 +2,65 @@
 
 :root {
   --background: #ffffff;
-  --foreground: #171717;
+  --foreground: #1e293b;
+  --primary-navy: #173456;
+  --primary-navy-dark: #0f2238;
+  --primary-navy-light: #234c7a;
+  --accent-teal: #0e8a7d;
+  --accent-teal-hover: #0b7066;
+  --accent-teal-subtle: #e6f6f4;
+  --accent-coral: #d3455b;
+  --accent-coral-hover: #bc364b;
+  --accent-coral-subtle: #fdf2f4;
+  --border-subtle: #e2e8f0;
+  --text-muted: #5a6e85;
+  --text-light: #889bb0;
+  --background-soft: #f8fafc;
+  --background-subtle: #f1f5f9;
+  --border-card: #e2e8f0;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --color-navy: var(--primary-navy);
+  --color-teal: var(--accent-teal);
+  --color-coral: var(--accent-coral);
+  --font-heading: var(--font-heading), sans-serif;
+  --font-sans: var(--font-heading), sans-serif;
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --background: #0a0a0a;
-    --foreground: #ededed;
-  }
+/* Enforce clinical light theme everywhere */
+html {
+  color-scheme: light;
 }
 
 body {
-  background: var(--background);
+  background: var(--background-soft);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-heading), sans-serif;
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+:where(h1, h2, h3, h4, h5, h6) {
+  color: var(--primary-navy);
+  font-family: var(--font-heading), sans-serif;
+  letter-spacing: -0.015em;
+}
+
+button, a, input, select, textarea {
+  transition: color 0.2s ease, background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+button:hover:not(:disabled), a:hover {
+  transform: translateY(-1px);
+}
+
+button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
+  outline: 3px solid rgba(14, 138, 125, 0.3);
+  outline-offset: 2px;
 }
 
 @media print {
@@ -44,9 +82,9 @@ body {
     background: white !important;
   }
   
-  /* Hide modal elements */
+  /* Hide modal controls while keeping the bill content visible */
   .modal-header-buttons,
-  .fixed.inset-0 {
+  .fixed.inset-0:not(:has([data-print-content])) {
     display: none !important;
   }
   

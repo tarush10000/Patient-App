@@ -112,16 +112,16 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)] w-full max-w-3xl max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="px-6 py-4 border-b flex items-center justify-between bg-gradient-to-r from-blue-600 to-blue-700">
+                <div className="px-6 py-4 border-b flex items-center justify-between bg-[#173456]">
                     <h2 className="text-xl font-bold text-white flex items-center gap-2">
                         <DollarSign size={24} />
                         {editingBill ? 'Edit Bill' : 'Create New Bill'}
                     </h2>
                     <button
                         onClick={handleClose}
-                        className="text-white hover:bg-white/20 p-2 rounded-lg transition-colors"
+                            className="text-white hover:bg-white/20 p-2 rounded-md transition-colors"
                     >
                         <X size={24} />
                     </button>
@@ -175,7 +175,7 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
                             </label>
                             <button
                                 onClick={handleAddItem}
-                                className="flex items-center gap-1 px-3 py-1.5 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition-colors text-sm font-medium"
+                                className="flex items-center gap-1 px-3 py-1.5 bg-[#e6f6f4] text-[#0e8a7d] rounded-md hover:bg-[#d2f0ec] transition-colors text-sm font-medium"
                             >
                                 <Plus size={16} />
                                 Add Item

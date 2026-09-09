@@ -75,14 +75,15 @@ export default function EditAppointmentModal({ appointment, onClose, onSuccess }
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl p-6 max-w-md w-full">
-                <div className="flex justify-between items-center mb-4">
-                    <h3 className="text-xl font-bold">Edit Appointment</h3>
-                    <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl max-w-md w-full overflow-hidden shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
+                <div className="bg-[#173456] p-5 flex justify-between items-center">
+                    <h3 className="text-xl font-bold text-white" style={{ color: '#ffffff' }}>Edit Appointment</h3>
+                    <button onClick={onClose} className="text-white hover:bg-white/20 p-2 rounded-md">
                         <X size={24} />
                     </button>
                 </div>
 
+                <div className="p-6">
                 {error && (
                     <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
                         {error}
@@ -136,6 +137,7 @@ export default function EditAppointmentModal({ appointment, onClose, onSuccess }
                         </button>
                     </div>
                 </form>
+                </div>
             </div>
         </div>
     );

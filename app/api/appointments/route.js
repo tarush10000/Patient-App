@@ -111,7 +111,12 @@ export async function POST(request) {
                         { 
                             errorCode: 'DUPLICATE_APPOINTMENT',
                             error: 'You already have an appointment scheduled for this day.',
-                            existingFullName: existingAppointment.fullName
+                            existingFullName: existingAppointment.fullName,
+                            existingPhone: existingAppointment.phone,
+                            existingAppointmentDate: existingAppointment.appointmentDate,
+                            existingTimeSlot: existingAppointment.timeSlot,
+                            existingConsultationType: existingAppointment.consultationType,
+                            existingStatus: existingAppointment.status
                         },
                         { status: 409 }
                     );

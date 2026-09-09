@@ -68,46 +68,44 @@ export default function AppointmentCard({ appointment, onCancel, onComplete, onE
 
     return (
         <>
-            <div className="bg-white rounded-xl border border-gray-200 p-4 hover:shadow-md transition">
-                <div className="flex justify-between items-start mb-3">
+            <div className="bg-white rounded-xl border border-slate-200/90 p-5 shadow-xs hover:shadow-sm hover:border-slate-300 transition">
+                <div className="flex justify-between items-start mb-3.5">
                     <div>
-                        <h3 className="font-bold text-lg text-gray-800">{appointment.fullName}</h3>
+                        <h3 className="font-bold text-base text-[#173456]">{appointment.fullName}</h3>
                         {(userRole === 'admin' || userRole === 'reception') && (
-                            <p className="text-sm text-gray-600">{appointment.phone}</p>
+                            <p className="text-xs text-slate-500 mt-0.5">{appointment.phone}</p>
                         )}
                     </div>
                     <span
-                        className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                        className={`px-2.5 py-0.5 rounded-full text-xs font-semibold ${
                             appointment.status === 'upcoming'
-                                ? 'bg-blue-100 text-blue-700'
-                                : appointment.status === 'completed'
-                                ? 'bg-green-100 text-green-700'
-                                : appointment.status === 'seen'
-                                ? 'bg-emerald-100 text-emerald-700'
-                                : 'bg-red-100 text-red-700'
+                                ? 'bg-slate-100 text-[#173456] border border-slate-200'
+                                : appointment.status === 'completed' || appointment.status === 'seen'
+                                ? 'bg-emerald-50 text-[#0e8a7d] border border-emerald-200/60'
+                                : 'bg-rose-50 text-[#d3455b] border border-rose-200/60'
                         }`}
                     >
-                        {appointment.status === 'seen' ? 'Seen' : appointment.status}
+                        {appointment.status === 'seen' ? 'Seen' : appointment.status.charAt(0).toUpperCase() + appointment.status.slice(1)}
                     </span>
                 </div>
 
-                <div className="space-y-2 text-sm">
-                    <div className="flex items-center text-gray-700">
-                        <Calendar size={16} className="mr-2 text-blue-600" />
-                        <span>{formatDate(appointment.appointmentDate)}</span>
+                <div className="space-y-2 text-xs text-slate-600">
+                    <div className="flex items-center">
+                        <Calendar size={15} className="mr-2 text-[#0e8a7d]" />
+                        <span className="font-medium text-slate-700">{formatDate(appointment.appointmentDate)}</span>
                     </div>
-                    <div className="flex items-center text-gray-700">
-                        <Clock size={16} className="mr-2 text-blue-600" />
-                        <span>{appointment.timeSlot}</span>
+                    <div className="flex items-center">
+                        <Clock size={15} className="mr-2 text-[#0e8a7d]" />
+                        <span className="font-medium text-slate-700">{appointment.timeSlot}</span>
                     </div>
-                    <div className="flex items-center text-gray-700">
-                        <FileText size={16} className="mr-2 text-blue-600" />
-                        <span className="capitalize">
+                    <div className="flex items-center">
+                        <FileText size={15} className="mr-2 text-[#0e8a7d]" />
+                        <span className="capitalize text-slate-600">
                             {appointment.consultationType?.replace(/-/g, ' ')}
                         </span>
                     </div>
                     {appointment.additionalMessage && (
-                        <p className="text-gray-600 mt-2 pl-6">
+                        <p className="text-slate-500 mt-2 pl-5 italic border-l-2 border-slate-200">
                             {appointment.additionalMessage}
                         </p>
                     )}
@@ -115,23 +113,23 @@ export default function AppointmentCard({ appointment, onCancel, onComplete, onE
 
                 {/* Action Buttons */}
                 {(appointment.status === 'upcoming' || appointment.status === 'seen') && (
-                    <div className="mt-4 flex flex-wrap gap-2">
+                    <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap gap-2">
                         {/* Patient Actions */}
                         {userRole === 'patient' && appointment.status === 'upcoming' && (
                             <>
                                 <button
                                     onClick={handleEditClick}
-                                    className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-600 rounded-lg hover:bg-blue-100 transition text-sm font-medium"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 text-[#173456] rounded-lg hover:bg-slate-200 transition text-xs font-semibold"
                                 >
-                                    <Edit2 size={16} />
-                                    Edit
+                                    <Edit2 size={14} />
+                                    Edit Details
                                 </button>
                                 <button
                                     onClick={() => onCancel(appointment._id)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-[#d3455b] rounded-lg hover:bg-rose-100 transition text-xs font-semibold"
                                 >
-                                    <Trash2 size={16} />
-                                    Cancel
+                                    <Trash2 size={14} />
+                                    Cancel Visit
                                 </button>
                             </>
                         )}
@@ -142,18 +140,18 @@ export default function AppointmentCard({ appointment, onCancel, onComplete, onE
                                 {appointment.status === 'upcoming' && (
                                     <button
                                         onClick={() => onComplete(appointment._id)}
-                                        className="flex items-center gap-2 px-4 py-2 bg-green-50 text-green-600 rounded-lg hover:bg-green-100 transition text-sm font-medium"
+                                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 text-[#0e8a7d] rounded-lg hover:bg-emerald-100 transition text-xs font-semibold"
                                     >
-                                        <Check size={16} />
+                                        <Check size={14} />
                                         Mark as Seen
                                     </button>
                                 )}
                                 <button
                                     onClick={() => onCancel(appointment._id)}
-                                    className="flex items-center gap-2 px-4 py-2 bg-red-50 text-red-600 rounded-lg hover:bg-red-100 transition text-sm font-medium"
+                                    className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-50 text-[#d3455b] rounded-lg hover:bg-rose-100 transition text-xs font-semibold"
                                 >
-                                    <Trash2 size={16} />
-                                    Cancel Appointment
+                                    <Trash2 size={14} />
+                                    Cancel
                                 </button>
                             </>
                         )}

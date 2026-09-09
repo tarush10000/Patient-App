@@ -2,7 +2,7 @@
 
 import { api } from '@/lib/api';
 import { getSlotGap } from '@/lib/slotConfig';
-import { Calendar, Clock, FileText, Phone, User, X } from 'lucide-react';
+import { Calendar, CheckCircle, Clock, FileText, Phone, User, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 export default function BookAppointmentForm({ onSuccess, onCancel }) {
@@ -20,6 +20,8 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
     const [loadingSlots, setLoadingSlots] = useState(false);
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
+    const [bookingComplete, setBookingComplete] = useState(false);
+    const [confirmedAppointment, setConfirmedAppointment] = useState(null);
     const [dayBlockedMessage, setDayBlockedMessage] = useState('');
     const [duplicateWarning, setDuplicateWarning] = useState(null);
 
@@ -106,19 +108,22 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
 
         try {
             await api.createAppointment(formData);
-            setSuccess('Appointment booked successfully!');
+            setConfirmedAppointment(formData);
+            setBookingComplete(true);
 
             // Refresh available slots after booking
             await fetchAvailableSlots(formData.appointmentDate);
 
-            setTimeout(() => {
-                if (onSuccess) onSuccess();
-            }, 1500);
         } catch (err) {
             if (err.data && err.data.errorCode === 'DUPLICATE_APPOINTMENT') {
                 setDuplicateWarning({
                     show: true,
-                    existingName: err.data.existingFullName
+                    existingName: err.data.existingFullName,
+                    existingPhone: err.data.existingPhone,
+                    existingAppointmentDate: err.data.existingAppointmentDate,
+                    existingTimeSlot: err.data.existingTimeSlot,
+                    existingConsultationType: err.data.existingConsultationType,
+                    existingStatus: err.data.existingStatus
                 });
             } else {
                 setError(err.message || 'Failed to book appointment');
@@ -135,11 +140,9 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
 
         try {
             await api.createAppointment({ ...formData, forceReplace: true });
-            setSuccess('Appointment replaced successfully!');
+            setConfirmedAppointment(formData);
+            setBookingComplete(true);
             await fetchAvailableSlots(formData.appointmentDate);
-            setTimeout(() => {
-                if (onSuccess) onSuccess();
-            }, 1500);
         } catch (err) {
             setError(err.message || 'Failed to replace booking');
             setLoading(false);
@@ -210,16 +213,41 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
         return diffInHours < 2;
     };
 
+    const addToCalendar = () => {
+        const start = new Date(`${confirmedAppointment.appointmentDate}T${to24HourTime(confirmedAppointment.timeSlot.split(' - ')[0])}:00`);
+        const end = new Date(`${confirmedAppointment.appointmentDate}T${to24HourTime(confirmedAppointment.timeSlot.split(' - ')[1])}:00`);
+        const formatCalendarDate = (date) => date.toISOString().replace(/[-:]/g, '').replace(/\.\d{3}/, '');
+        const calendar = [
+            'BEGIN:VCALENDAR', 'VERSION:2.0', 'BEGIN:VEVENT',
+            `DTSTART:${formatCalendarDate(start)}`, `DTEND:${formatCalendarDate(end)}`,
+            `SUMMARY:Women Wellness Center appointment for ${confirmedAppointment.fullName}`,
+            'END:VEVENT', 'END:VCALENDAR'
+        ].join('\r\n');
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(new Blob([calendar], { type: 'text/calendar' }));
+        link.download = 'appointment.ics';
+        link.click();
+        URL.revokeObjectURL(link.href);
+    };
+
+    const to24HourTime = (value) => {
+        const [time, period] = value.split(' ');
+        let [hours, minutes] = time.split(':').map(Number);
+        if (period === 'PM' && hours !== 12) hours += 12;
+        if (period === 'AM' && hours === 12) hours = 0;
+        return `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}`;
+    };
+
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50 overflow-y-auto">
-            <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl my-8">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)] w-full max-w-2xl max-h-[90vh] my-8 flex flex-col overflow-hidden">
                 {/* Header */}
-                <div className="sticky top-0 bg-gradient-to-r from-blue-600 to-indigo-600 p-6 text-white flex justify-between items-center rounded-t-2xl">
-                    <h2 className="text-2xl font-bold">Book Appointment</h2>
+                <div className="sticky top-0 bg-[#173456] p-6 text-white flex justify-between items-center rounded-t-xl">
+                    <h2 className="text-2xl font-bold text-white" style={{ color: '#ffffff' }}>Book Appointment</h2>
                     {onCancel && (
                         <button
                             onClick={onCancel}
-                            className="text-white hover:bg-white hover:bg-opacity-20 p-2 rounded-lg transition"
+                            className="text-white hover:bg-white/20 p-2 rounded-md transition"
                         >
                             <X size={24} />
                         </button>
@@ -227,7 +255,26 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                 </div>
 
                 {/* Form */}
-                <form onSubmit={handleSubmit} className="p-6">
+                <form onSubmit={handleSubmit} className="p-6 flex flex-col min-h-0">
+                    {bookingComplete ? (
+                        <div className="py-8 text-center">
+                            <CheckCircle className="mx-auto mb-4 text-[#0e8a7d]" size={48} />
+                            <h3 className="text-2xl font-bold text-[#173456] mb-2">Appointment confirmed</h3>
+                            <p className="text-[#5a6e85] mb-6">Your appointment is booked. We will send updates by SMS and WhatsApp.</p>
+                            <div className="text-left bg-[#f8fafc] border border-[#e2e8f0] rounded-xl p-4 space-y-2 mb-6">
+                                <p><strong>Patient:</strong> {confirmedAppointment.fullName}</p>
+                                <p><strong>Phone:</strong> +91 {confirmedAppointment.phone}</p>
+                                <p><strong>Date:</strong> {confirmedAppointment.appointmentDate}</p>
+                                <p><strong>Time:</strong> {confirmedAppointment.timeSlot}</p>
+                                <p><strong>Consultation:</strong> {confirmedAppointment.consultationType}</p>
+                                <p className="text-[#0e8a7d] font-medium">SMS notification: queued</p>
+                            </div>
+                            <div className="flex gap-3">
+                                <button type="button" onClick={addToCalendar} className="flex-1 px-4 py-3 border border-[#173456] text-[#173456] rounded-md font-semibold">Add to calendar</button>
+                                <button type="button" onClick={onSuccess || onCancel} className="flex-1 px-4 py-3 bg-[#0e8a7d] text-white rounded-md font-semibold">Back to dashboard</button>
+                            </div>
+                        </div>
+                    ) : <>
                     {error && (
                         <div className="bg-red-50 border border-red-200 text-red-800 px-4 py-3 rounded-lg mb-4">
                             {error}
@@ -240,11 +287,11 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         </div>
                     )}
 
-                    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-2">
+                    <div className="space-y-4 flex-1 min-h-0 overflow-y-auto pr-2">
                         {/* Full Name */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                <User size={18} className="mr-2 text-blue-600" />
+                                <User size={18} className="mr-2 text-[#0e8a7d]" />
                                 Full Name *
                             </label>
                             <input
@@ -261,7 +308,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         {/* Phone Number */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                <Phone size={18} className="mr-2 text-blue-600" />
+                                <Phone size={18} className="mr-2 text-[#0e8a7d]" />
                                 Phone Number *
                             </label>
                             <div className="flex gap-2">
@@ -285,7 +332,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         {/* Appointment Date */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                <Calendar size={18} className="mr-2 text-blue-600" />
+                                <Calendar size={18} className="mr-2 text-[#0e8a7d]" />
                                 Appointment Date *
                             </label>
                             <input
@@ -307,7 +354,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         {formData.appointmentDate && (
                             <div>
                                 <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                    <Clock size={18} className="mr-2 text-blue-600" />
+                                    <Clock size={18} className="mr-2 text-[#0e8a7d]" />
                                     Preferred Time Slot *
                                 </label>
 
@@ -381,7 +428,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         {/* Consultation Type */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                <FileText size={18} className="mr-2 text-blue-600" />
+                                <FileText size={18} className="mr-2 text-[#0e8a7d]" />
                                 Type of Consultation *
                             </label>
                             <select
@@ -403,7 +450,7 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         {/* Additional Message */}
                         <div>
                             <label className="flex items-center text-sm font-medium text-gray-700 mb-2">
-                                <FileText size={18} className="mr-2 text-blue-600" />
+                                <FileText size={18} className="mr-2 text-[#0e8a7d]" />
                                 Additional Message (Optional)
                             </label>
                             <textarea
@@ -416,6 +463,18 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                             />
                         </div>
                     </div>
+
+                    {/* Confirmation Summary */}
+                    {formData.fullName && formData.phone && formData.appointmentDate && formData.timeSlot && formData.consultationType && (
+                        <div className="mt-6 rounded-xl border border-[#bce8e3] bg-[#e6f6f4] p-4 text-sm text-[#173456]">
+                            <p className="font-bold mb-2">Appointment summary</p>
+                            <p>Patient: {formData.fullName}</p>
+                            <p>Phone: +91 {formData.phone}</p>
+                            <p>Date: {formData.appointmentDate}</p>
+                            <p>Time: {formData.timeSlot}</p>
+                            <p>Consultation: {consultationTypes.find(type => type.value === formData.consultationType)?.label}</p>
+                        </div>
+                    )}
 
                     {/* Submit Button */}
                     <div className="mt-6 flex gap-3">
@@ -431,11 +490,12 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         <button
                             type="submit"
                             disabled={loading || !formData.timeSlot}
-                            className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition disabled:bg-gray-300 disabled:cursor-not-allowed"
+                            className="flex-1 px-6 py-3 bg-[#0e8a7d] text-white rounded-md font-semibold hover:bg-[#0b7066] transition disabled:bg-[#cbd5e1] disabled:cursor-not-allowed"
                         >
                             {loading ? 'Booking...' : 'Book Appointment'}
                         </button>
                     </div>
+                    </>}
                 </form>
             </div>
 
@@ -449,6 +509,12 @@ export default function BookAppointmentForm({ onSuccess, onCancel }) {
                         <p className="mb-4 text-gray-600 font-medium">
                             This phone number already has an appointment booked for <span className="text-gray-900 font-bold whitespace-nowrap">{formData.appointmentDate}</span>.
                         </p>
+                        <div className="text-left bg-[#f8fafc] border border-[#e2e8f0] rounded-lg p-3 mb-4 text-sm space-y-1">
+                            <p><strong>Existing patient:</strong> {duplicateWarning.existingName}</p>
+                            <p><strong>Date:</strong> {duplicateWarning.existingAppointmentDate ? new Date(duplicateWarning.existingAppointmentDate).toLocaleDateString('en-IN') : formData.appointmentDate}</p>
+                            <p><strong>Time:</strong> {duplicateWarning.existingTimeSlot || 'Unavailable'}</p>
+                            <p><strong>Status:</strong> {duplicateWarning.existingStatus || 'Active'}</p>
+                        </div>
                         <p className="mb-4 text-gray-800 text-sm font-semibold bg-red-50 p-3 outline outline-1 outline-red-200 rounded-lg">
                             If you proceed, the old appointment will be deleted!
                         </p>

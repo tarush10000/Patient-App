@@ -67,59 +67,100 @@ export default function DashboardPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
+                <div className="animate-spin rounded-full h-10 w-10 border-2 border-slate-200 border-t-[#173456]"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[#f8fafc]">
             <Header />
 
-            <main className="max-w-4xl mx-auto p-4 pb-24">
-                <h2 className="text-2xl font-bold text-gray-800 mb-6">Welcome Back!</h2>
+            <main className="max-w-4xl mx-auto p-4 md:p-6 pb-28">
+                <div className="flex items-center justify-between mb-6">
+                    <div>
+                        <h2 className="text-2xl font-bold tracking-tight text-[#173456]">Welcome Back</h2>
+                        <p className="text-xs text-slate-500 mt-0.5">Manage your consultations and health records</p>
+                    </div>
+                    <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/60 text-xs font-semibold text-[#0e8a7d]">
+                        <span className="w-2 h-2 rounded-full bg-[#0e8a7d]"></span>
+                        Patient Portal
+                    </span>
+                </div>
 
-                <div className="space-y-4">
+                <div className="space-y-5">
                     {/* Upcoming Appointment Card */}
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-700 rounded-xl p-6 text-white shadow-lg">
-                        <h3 className="font-bold text-lg mb-3">Upcoming Appointment</h3>
-                        {upcomingAppointment ? (
-                            <div>
-                                <p className="text-2xl font-bold">{formatDate(upcomingAppointment.appointmentDate)}</p>
-                                <p className="text-sm opacity-90 mt-1">{upcomingAppointment.timeSlot}</p>
-                                <p className="text-sm opacity-90 mt-1 capitalize">
-                                    {upcomingAppointment.consultationType?.replace(/-/g, ' ')}
-                                </p>
+                    <div className="bg-[#173456] rounded-2xl p-6 text-white shadow-[0_4px_20px_rgba(23,52,86,0.12)] border border-slate-700/30 relative overflow-hidden">
+                        <div className="absolute top-0 right-0 w-64 h-64 bg-[#0e8a7d]/15 rounded-full blur-3xl pointer-events-none -mr-20 -mt-20"></div>
+                        <div className="relative z-10">
+                            <div className="flex items-center justify-between mb-4">
+                                <span className="text-xs font-semibold uppercase tracking-wider text-[#169888] bg-white/10 px-2.5 py-1 rounded-md">
+                                    Upcoming Consultation
+                                </span>
+                                {upcomingAppointment && (
+                                    <span className="text-xs text-slate-300 font-medium">
+                                        Confirmed
+                                    </span>
+                                )}
                             </div>
-                        ) : (
-                            <p>No upcoming appointments</p>
-                        )}
+                            
+                            {upcomingAppointment ? (
+                                <div className="space-y-2">
+                                    <p className="text-2xl font-bold tracking-tight text-white">{formatDate(upcomingAppointment.appointmentDate)}</p>
+                                    <div className="flex items-center gap-2 text-sm text-slate-200">
+                                        <Calendar size={16} className="text-[#169888]" />
+                                        <span>{upcomingAppointment.timeSlot}</span>
+                                    </div>
+                                    <p className="text-xs text-slate-300 capitalize pt-1">
+                                        {upcomingAppointment.consultationType?.replace(/-/g, ' ')}
+                                    </p>
+                                </div>
+                            ) : (
+                                <div className="py-2">
+                                    <p className="text-base text-slate-200 font-medium">No upcoming appointments scheduled</p>
+                                    <p className="text-xs text-slate-400 mt-1">Book your visit anytime using the button below</p>
+                                </div>
+                            )}
+                        </div>
                     </div>
 
                     {/* Quick Actions */}
                     <div className="grid grid-cols-2 gap-4">
                         <button
                             onClick={() => router.push('/dashboard/appointments')}
-                            className="bg-blue-100 text-blue-800 p-6 rounded-xl font-semibold hover:bg-blue-200 transition flex flex-col items-center gap-2"
+                            className="bg-white border border-slate-200 p-5 rounded-xl font-semibold hover:border-[#173456]/40 hover:shadow-sm transition flex flex-col items-center gap-3 text-left group"
                         >
-                            <Calendar size={32} />
-                            Book Appointment
+                            <div className="w-12 h-12 rounded-xl bg-[#f0f4f9] text-[#173456] flex items-center justify-center group-hover:bg-[#173456] group-hover:text-white transition">
+                                <Calendar size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-slate-900">Book Visit</p>
+                                <p className="text-xs text-slate-500 font-normal">Schedule appointment</p>
+                            </div>
                         </button>
                         <button
                             onClick={() => router.push('/dashboard/billing')}
-                            className="bg-green-100 text-green-800 p-6 rounded-xl font-semibold hover:bg-green-200 transition flex flex-col items-center gap-2"
+                            className="bg-white border border-slate-200 p-5 rounded-xl font-semibold hover:border-[#0e8a7d]/40 hover:shadow-sm transition flex flex-col items-center gap-3 text-left group"
                         >
-                            <FileText size={32} />
-                            View Bills
+                            <div className="w-12 h-12 rounded-xl bg-emerald-50 text-[#0e8a7d] flex items-center justify-center group-hover:bg-[#0e8a7d] group-hover:text-white transition">
+                                <FileText size={24} />
+                            </div>
+                            <div className="text-center">
+                                <p className="text-sm font-bold text-slate-900">View Invoices</p>
+                                <p className="text-xs text-slate-500 font-normal">Past consultation bills</p>
+                            </div>
                         </button>
                     </div>
 
                     {/* Health Tip */}
-                    <div className="bg-white rounded-xl p-6 shadow-md">
-                        <h3 className="font-bold text-lg mb-2 text-gray-800">Health Tip of the Day</h3>
-                        <p className="text-gray-600">
-                            Remember to stay hydrated! Drinking enough water is crucial for overall health and well-being.
+                    <div className="bg-white rounded-xl p-5 border border-slate-200/90 shadow-xs">
+                        <div className="flex items-center gap-2 mb-2">
+                            <span className="w-1.5 h-4 bg-[#0e8a7d] rounded-full"></span>
+                            <h3 className="font-bold text-sm text-[#173456]">Clinical Health Tip</h3>
+                        </div>
+                        <p className="text-slate-600 text-xs leading-relaxed">
+                            Consistent hydration supports hormonal balance, reproductive wellness, and cellular recovery. Remember to drink adequate water throughout the day.
                         </p>
                     </div>
                 </div>

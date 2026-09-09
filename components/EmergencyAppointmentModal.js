@@ -91,15 +91,15 @@ export default function EmergencyAppointmentModal({ onClose, onSuccess }) {
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-            <div className="bg-white rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-                <div className="flex justify-between items-center mb-4">
+            <div className="bg-white border border-[#e2e8f0] rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)]">
+                <div className="bg-[#173456] p-5 flex justify-between items-center rounded-t-xl">
                     <div className="flex items-center gap-2">
-                        <AlertTriangle className="text-red-600" size={24} />
-                        <h3 className="text-xl font-bold text-gray-800">Emergency Appointment</h3>
+                        <AlertTriangle className="text-[#d3455b]" size={24} />
+                        <h3 className="text-xl font-bold text-white" style={{ color: '#ffffff' }}>Emergency Appointment</h3>
                     </div>
                     <button
                         onClick={onClose}
-                        className="text-gray-500 hover:text-gray-700"
+                        className="text-white hover:bg-white/20 p-2 rounded-md"
                     >
                         <X size={24} />
                     </button>
@@ -112,7 +112,7 @@ export default function EmergencyAppointmentModal({ onClose, onSuccess }) {
                     </p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="space-y-4">
+                <form onSubmit={handleSubmit} className="p-6 space-y-4">
                     {error && (
                         <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
                             <p className="text-sm text-red-600">{error}</p>

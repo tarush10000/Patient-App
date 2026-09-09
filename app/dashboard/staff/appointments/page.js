@@ -78,7 +78,7 @@ export default function StaffAppointmentsPage() {
             setShowEditModal(false);
             setEditingAppointment(null);
             fetchAllAppointments();
-            toast.success('✅ Appointment updated successfully!');
+                toast.success('Appointment updated successfully!');
         } catch (error) {
             toast.error('Failed to update appointment: ' + error.message);
         }
@@ -214,9 +214,9 @@ export default function StaffAppointmentsPage() {
             await api.updateAppointment(appointmentId, { status: newStatus });
 
             if (newStatus === 'seen') {
-                toast.success('✅ Patient marked as seen. Thank you message sent via WhatsApp.');
+                toast.success('Patient marked as seen. Thank you message sent via WhatsApp.');
             } else if (newStatus === 'cancelled') {
-                toast.success('✅ Appointment cancelled successfully.');
+                toast.success('Appointment cancelled successfully.');
             }
 
             fetchAllAppointments();
@@ -241,7 +241,7 @@ export default function StaffAppointmentsPage() {
 
         try {
             await api.deleteAppointment(appointmentId);
-            toast.success('✅ Appointment deleted successfully');
+            toast.success('Appointment deleted successfully');
             fetchAllAppointments();
         } catch (error) {
             toast.error('Failed to delete appointment: ' + error.message);
@@ -260,7 +260,7 @@ export default function StaffAppointmentsPage() {
 
             await api.delayAppointment(appointmentId, minutes);
             fetchAllAppointments();
-            toast.success(`✅ Appointment delayed by ${minutes} minutes. Patient notified.`);
+            toast.success(`Appointment delayed by ${minutes} minutes. Patient notified.`);
         } catch (error) {
             toast.error('Failed to delay appointment: ' + error.message);
         } finally {
@@ -289,13 +289,13 @@ export default function StaffAppointmentsPage() {
     const getStatusColor = (status) => {
         switch (status) {
             case 'upcoming':
-                return 'bg-blue-100 text-blue-700';
+                return 'bg-[#f1f5f9] text-[#234c7a]';
             case 'seen':
-                return 'bg-green-100 text-green-700';
+                return 'bg-[#e6f6f4] text-[#0e8a7d]';
             case 'cancelled':
-                return 'bg-red-100 text-red-700';
+                return 'bg-[#fdf2f4] text-[#d3455b]';
             default:
-                return 'bg-gray-100 text-gray-700';
+                return 'bg-[#f1f5f9] text-[#5a6e85]';
         }
     };
 
@@ -321,14 +321,14 @@ export default function StaffAppointmentsPage() {
 
     if (loading) {
         return (
-            <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+            <div className="min-h-screen bg-[#f8fafc] flex items-center justify-center">
                 <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
             </div>
         );
     }
 
     return (
-        <div className="min-h-screen bg-gray-50">
+        <div className="min-h-screen bg-[#f8fafc]">
             <Header />
             <ToastContainer
                 position="top-right"
@@ -345,22 +345,22 @@ export default function StaffAppointmentsPage() {
 
             <main className="max-w-6xl mx-auto p-4 pb-24">
                 <div className="mb-6">
-                    <h2 className="text-2xl font-bold text-gray-800">All Appointments</h2>
-                    <p className="text-gray-600 mt-1">Manage and view all appointments</p>
+                    <h2 className="text-2xl font-bold text-[#173456]">All Appointments</h2>
+                    <p className="text-[#5a6e85] mt-1">Manage and view all appointments</p>
                 </div>
 
                 {/* Filters */}
-                <div className="bg-white rounded-xl shadow-md p-4 mb-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-gray-400">
+                <div className="bg-white border border-[#e2e8f0] rounded-xl shadow-[0_4px_20px_-2px_rgba(15,23,42,0.07)] p-4 mb-6">
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-[#889bb0]">
                         {/* Search */}
                         <div className="relative">
-                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-[#0e8a7d]" size={18} />
                             <input
                                 type="text"
                                 placeholder="Search by name or phone..."
                                 value={searchTerm}
                                 onChange={(e) => setSearchTerm(e.target.value)}
-                                className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full pl-10 pr-4 py-2 border border-[#e2e8f0] rounded-md focus:ring-2 focus:ring-[#0e8a7d] text-[#1e293b]"
                             />
                         </div>
 
@@ -368,7 +368,7 @@ export default function StaffAppointmentsPage() {
                         <select
                             value={statusFilter}
                             onChange={(e) => setStatusFilter(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-[#e2e8f0] rounded-md focus:ring-2 focus:ring-[#0e8a7d] text-[#1e293b]"
                         >
                             <option value="all">All Status</option>
                             <option value="upcoming">Upcoming</option>
@@ -380,7 +380,7 @@ export default function StaffAppointmentsPage() {
                         <select
                             value={dateFilter}
                             onChange={(e) => setDateFilter(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-[#e2e8f0] rounded-md focus:ring-2 focus:ring-[#0e8a7d] text-[#1e293b]"
                         >
                             <option value="all">All Dates</option>
                             <option value="today">Today</option>
@@ -393,7 +393,7 @@ export default function StaffAppointmentsPage() {
                         <select
                             value={consultationTypeFilter}
                             onChange={(e) => setConsultationTypeFilter(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                            className="w-full px-4 py-2 border border-[#e2e8f0] rounded-md focus:ring-2 focus:ring-[#0e8a7d] text-[#1e293b]"
                         >
                             <option value="all">All Types</option>
                             <option value="general-consultation">General Consultation</option>
@@ -410,7 +410,7 @@ export default function StaffAppointmentsPage() {
                                 type="date"
                                 value={selectedDate}
                                 onChange={(e) => setSelectedDate(e.target.value)}
-                                className="w-full md:w-auto px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                                className="w-full md:w-auto px-4 py-2 border border-[#e2e8f0] rounded-md focus:ring-2 focus:ring-[#0e8a7d] text-[#1e293b]"
                             />
                         </div>
                     )}
@@ -418,27 +418,27 @@ export default function StaffAppointmentsPage() {
                     {/* Active Filters Display */}
                     {(searchTerm || statusFilter !== 'all' || dateFilter !== 'all' || consultationTypeFilter !== 'all') && (
                         <div className="mt-4 flex flex-wrap gap-2">
-                            <span className="text-sm text-gray-600 font-medium">Active Filters:</span>
+                            <span className="text-sm text-[#5a6e85] font-medium">Active Filters:</span>
                             {searchTerm && (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                <span className="px-3 py-1 bg-[#e6f6f4] text-[#0e8a7d] rounded-full text-sm flex items-center gap-1">
                                     Search: {searchTerm}
                                     <X size={14} className="cursor-pointer" onClick={() => setSearchTerm('')} />
                                 </span>
                             )}
                             {statusFilter !== 'all' && (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                <span className="px-3 py-1 bg-[#e6f6f4] text-[#0e8a7d] rounded-full text-sm flex items-center gap-1">
                                     Status: {statusFilter}
                                     <X size={14} className="cursor-pointer" onClick={() => setStatusFilter('all')} />
                                 </span>
                             )}
                             {dateFilter !== 'all' && (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                <span className="px-3 py-1 bg-[#e6f6f4] text-[#0e8a7d] rounded-full text-sm flex items-center gap-1">
                                     Date: {dateFilter}
                                     <X size={14} className="cursor-pointer" onClick={() => setDateFilter('all')} />
                                 </span>
                             )}
                             {consultationTypeFilter !== 'all' && (
-                                <span className="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-sm flex items-center gap-1">
+                                <span className="px-3 py-1 bg-[#e6f6f4] text-[#0e8a7d] rounded-full text-sm flex items-center gap-1">
                                     Type: {consultationTypeFilter}
                                     <X size={14} className="cursor-pointer" onClick={() => setConsultationTypeFilter('all')} />
                                 </span>
@@ -448,7 +448,7 @@ export default function StaffAppointmentsPage() {
                 </div>
 
                 {/* Results Count */}
-                <div className="mb-4 text-sm text-gray-600">
+                <div className="mb-4 text-sm text-[#5a6e85]">
                     Showing {filteredAppointments.length} appointment{filteredAppointments.length !== 1 ? 's' : ''}
                 </div>
 
@@ -465,9 +465,9 @@ export default function StaffAppointmentsPage() {
                             <div key={date} className="space-y-4">
                                 {/* Date Header */}
                                 <div className="flex items-center gap-3 mb-4">
-                                    <Calendar className="text-blue-600" size={20} />
-                                    <h3 className="text-lg font-bold text-gray-800">{date}</h3>
-                                    <div className="flex-1 h-px bg-gray-300"></div>
+                                    <Calendar className="text-[#0e8a7d]" size={20} />
+                                    <h3 className="text-lg font-bold text-[#173456]">{date}</h3>
+                                    <div className="flex-1 h-px bg-[#e2e8f0]"></div>
                                 </div>
 
                                 {/* Time Slots for this Date */}
@@ -478,38 +478,38 @@ export default function StaffAppointmentsPage() {
                                         count={appointments.length}
                                         icon={<ClockIcon size={20} />}
                                         defaultOpen={true}
-                                        colorClass="from-blue-600 to-blue-700"
+                                        colorClass="bg-[#173456]"
                                     >
                                         <div className="divide-y divide-gray-200">
                                             {appointments.map((apt, index) => (
-                                                <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-orange-50 hover:bg-orange-100 border-l-4 border-orange-500' : 'hover:bg-gray-50'}`}>
+                                                <div key={apt._id} className={`p-5 transition ${apt.isEmergency ? 'bg-[#fdf2f4] hover:bg-[#fbe8eb] border-l-4 border-[#d3455b]' : 'hover:bg-[#f8fafc]'}`}>
                                                     <div className="flex flex-col lg:flex-row justify-between gap-4">
                                                         {/* Appointment Details */}
                                                         <div className="flex-1">
                                                             <div className="flex items-start justify-between mb-3">
                                                                 <div>
                                                                     <div className="flex items-center gap-2 mb-1">
-                                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${apt.isEmergency ? 'bg-orange-100 text-orange-700' : 'bg-blue-100 text-blue-700'}`}>
+                                                                        <span className={`text-xs font-bold px-2 py-1 rounded ${apt.isEmergency ? 'bg-[#fbe8eb] text-[#d3455b]' : 'bg-[#e6f6f4] text-[#0e8a7d]'}`}>
                                                                             #{index + 1}
                                                                         </span>
-                                                                        <span className="text-sm font-semibold text-gray-600">
+                                                                        <span className="text-sm font-semibold text-[#5a6e85]">
                                                                             Approx: {calculateActualAppointmentTime(timeSlot, index, apt)}
                                                                         </span>
                                                                     </div>
                                                                     <div className="flex items-center gap-2">
-                                                                        <h4 className="font-bold text-lg text-gray-800">{apt.fullName}</h4>
+                                                                        <h4 className="font-bold text-lg text-[#173456]">{apt.fullName}</h4>
                                                                         {/* Booked By Indicator */}
                                                                         {apt.createdBy?.role === 'patient' ? (
-                                                                            <span title="Booked by Patient" className="text-green-600 bg-green-50 px-2 py-0.5 rounded text-xs border border-green-200 flex items-center gap-1">
+                                                                            <span title="Booked by Patient" className="text-[#0e8a7d] bg-[#e6f6f4] px-2 py-0.5 rounded text-xs border border-[#bce8e3] flex items-center gap-1">
                                                                                 <User size={12} /> Patient
                                                                             </span>
                                                                         ) : (
-                                                                            <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-purple-600 bg-purple-50 px-2 py-0.5 rounded text-xs border border-purple-200 flex items-center gap-1">
+                                                                            <span title={`Booked by ${apt.createdBy?.role || 'Staff'}`} className="text-[#234c7a] bg-[#f1f5f9] px-2 py-0.5 rounded text-xs border border-[#e2e8f0] flex items-center gap-1">
                                                                                 <Users size={12} /> {apt.createdBy?.role === 'admin' ? 'Admin' : 'Staff'}
                                                                             </span>
                                                                         )}
                                                                     </div>
-                                                                    <p className="text-sm text-gray-600">📞 {apt.phone}</p>
+                                                                    <p className="text-sm text-[#5a6e85]">{apt.phone}</p>
                                                                 </div>
                                                                 <span className={`px-3 py-1 rounded-full text-xs font-semibold ${getStatusColor(apt.status)}`}>
                                                                     {apt.status}
@@ -517,13 +517,13 @@ export default function StaffAppointmentsPage() {
                                                             </div>
 
                                                             <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
-                                                                <div className="text-gray-700">
+                                                                <div className="text-[#1e293b]">
                                                                     <span className="font-medium">{apt.consultationType?.replace(/-/g, ' ').toUpperCase()}</span>
                                                                 </div>
                                                                 {apt.additionalMessage && (
                                                                     <div className="col-span-2 mt-2">
-                                                                        <p className="text-sm text-gray-600 bg-gray-50 p-2 rounded">
-                                                                            💬 {apt.additionalMessage}
+                                                                        <p className="text-sm text-[#5a6e85] bg-[#f8fafc] p-2 rounded">
+                                                                            {apt.additionalMessage}
                                                                         </p>
                                                                     </div>
                                                                 )}
@@ -538,7 +538,7 @@ export default function StaffAppointmentsPage() {
                                                                         <button
                                                                             onClick={() => handleStatusUpdate(apt._id, 'seen')}
                                                                             disabled={loadingStates.seen[apt._id]}
-                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-[#0e8a7d] text-white rounded-md hover:bg-[#0b7066] transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <CheckCircle size={16} />
                                                                             {loadingStates.seen[apt._id] ? 'Processing...' : 'Mark Seen'}
@@ -546,7 +546,7 @@ export default function StaffAppointmentsPage() {
                                                                         <button
                                                                             onClick={() => handleStatusUpdate(apt._id, 'cancelled')}
                                                                             disabled={loadingStates.cancel[apt._id]}
-                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex-1 flex items-center justify-center gap-1 px-3 py-2 bg-[#d3455b] text-white rounded-md hover:bg-[#bc364b] transition text-sm font-medium disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <XCircle size={16} />
                                                                             {loadingStates.cancel[apt._id] ? 'Processing...' : 'Cancel'}
@@ -561,7 +561,7 @@ export default function StaffAppointmentsPage() {
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 15)}
                                                                             disabled={loadingStates.delay[apt._id]}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex-1 px-2 py-1.5 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition font-medium border border-[#e2e8f0] disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
                                                                             {loadingStates.delay[apt._id] ? '...' : '+15m'}
@@ -569,7 +569,7 @@ export default function StaffAppointmentsPage() {
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 30)}
                                                                             disabled={loadingStates.delay[apt._id]}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex-1 px-2 py-1.5 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition font-medium border border-[#e2e8f0] disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
                                                                             {loadingStates.delay[apt._id] ? '...' : '+30m'}
@@ -577,7 +577,7 @@ export default function StaffAppointmentsPage() {
                                                                         <button
                                                                             onClick={() => handleDelayAppointment(apt._id, 60)}
                                                                             disabled={loadingStates.delay[apt._id]}
-                                                                            className="flex-1 px-2 py-1.5 bg-orange-50 text-orange-700 rounded hover:bg-orange-100 transition font-medium border border-orange-200 disabled:opacity-50 disabled:cursor-not-allowed"
+                                                                            className="flex-1 px-2 py-1.5 bg-[#f1f5f9] text-[#234c7a] rounded-md hover:bg-[#e2e8f0] transition font-medium border border-[#e2e8f0] disabled:opacity-50 disabled:cursor-not-allowed"
                                                                         >
                                                                             <ClockIcon size={14} className="inline mr-1" />
                                                                             {loadingStates.delay[apt._id] ? '...' : '+1hr'}
@@ -586,14 +586,14 @@ export default function StaffAppointmentsPage() {
 
                                                                     <button
                                                                         onClick={() => handleAddBill(apt)}
-                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-blue-50 text-blue-700 rounded-lg hover:bg-blue-100 transition text-sm font-medium border border-blue-200"
+                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-[#e6f6f4] text-[#0e8a7d] rounded-md hover:bg-[#d2f0ec] transition text-sm font-medium border border-[#bce8e3]"
                                                                     >
                                                                         <DollarSign size={16} />
                                                                         Add Bill
                                                                     </button>
                                                                     <button
                                                                         onClick={() => handleEditAppointment(apt)}
-                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-purple-50 text-purple-700 rounded-lg hover:bg-purple-100 transition text-sm font-medium border border-purple-200"
+                                                                        className="flex items-center justify-center gap-2 px-3 py-2 bg-white text-[#173456] rounded-md hover:bg-[#f1f5f9] transition text-sm font-medium border border-[#173456]"
                                                                     >
                                                                         <Edit size={16} />
                                                                         Edit
@@ -604,7 +604,7 @@ export default function StaffAppointmentsPage() {
                                                             {currentUser?.role === 'admin' && (
                                                                 <button
                                                                     onClick={() => handleDeleteAppointment(apt._id)}
-                                                                    className="flex items-center justify-center gap-2 px-3 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700 transition text-sm font-medium"
+                                                                    className="flex items-center justify-center gap-2 px-3 py-2 bg-[#d3455b] text-white rounded-md hover:bg-[#bc364b] transition text-sm font-medium"
                                                                 >
                                                                     <Trash2 size={16} />
                                                                     Delete
@@ -612,8 +612,8 @@ export default function StaffAppointmentsPage() {
                                                             )}
 
                                                             {currentUser?.role === 'reception' && apt.status !== 'upcoming' && (
-                                                                <div className="text-xs text-gray-400 text-center p-2 bg-gray-50 rounded">
-                                                                    {apt.status === 'seen' ? 'Completed ✓' : 'Cancelled ✗'}
+                                                                <div className="text-xs text-[#889bb0] text-center p-2 bg-[#f8fafc] rounded">
+                                                                    {apt.status === 'seen' ? 'Completed' : 'Cancelled'}
                                                                 </div>
                                                             )}
                                                         </div>
@@ -769,7 +769,7 @@ function BillModal({ appointment, onClose, onSuccess }) {
 
             await api.createBill(billData);
 
-            alert('✅ Bill created successfully!');
+            alert('Bill created successfully!');
             onSuccess();
         } catch (error) {
             console.error('Bill creation error:', error);
@@ -1105,21 +1105,21 @@ function EditAppointmentModal({ appointment, onClose, onSave }) {
     );
 }
 
-function CollapsibleSection({ title, count, icon, children, defaultOpen = false, colorClass = "from-blue-600 to-blue-700" }) {
+function CollapsibleSection({ title, count, icon, children, defaultOpen = false, colorClass = "bg-[#173456]" }) {
     const [isOpen, setIsOpen] = useState(defaultOpen);
 
     return (
         <div className="bg-white rounded-xl shadow-md overflow-hidden">
             <button
                 onClick={() => setIsOpen(!isOpen)}
-                className={`w-full bg-gradient-to-r ${colorClass} text-white px-5 py-3 flex justify-between items-center transition hover:opacity-90`}
+                className={`w-full ${colorClass} text-white px-5 py-3 flex justify-between items-center transition hover:opacity-90`}
             >
                 <div className="flex items-center gap-3">
                     {icon}
-                    <h4 className="font-bold text-lg">{title}</h4>
+                    <h4 className="font-bold text-lg text-white" style={{ color: '#ffffff' }}>{title}</h4>
                 </div>
                 <div className="flex items-center gap-3">
-                    <span className="bg-white bg-opacity-20 px-3 py-1 rounded-full text-sm font-semibold text-white">
+                    <span className="bg-white/20 px-3 py-1 rounded-full text-sm font-semibold text-white">
                         {count} {count === 1 ? 'patient' : 'patients'}
                     </span>
                     {isOpen ? <ChevronUp size={20} /> : <ChevronDown size={20} />}

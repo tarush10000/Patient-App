@@ -1,4 +1,12 @@
 import "./globals.css";
+import { Plus_Jakarta_Sans } from "next/font/google";
+
+const plusJakartaSans = Plus_Jakarta_Sans({
+  subsets: ["latin"],
+  variable: "--font-heading",
+  weight: ["500", "600", "700", "800"],
+  display: "swap",
+});
 
 export const metadata = {
   // Primary Meta Tags
@@ -56,7 +64,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="en">
+    <html lang="en" className={`${plusJakartaSans.variable} light`}>
       <head>
         {/* Structured Data / Schema.org for Local Medical Business */}
         <script
