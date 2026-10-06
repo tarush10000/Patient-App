@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { DollarSign, TrendingUp, Calendar, Filter, Download, CreditCard, Wallet, Smartphone, Globe } from 'lucide-react';
+import { DollarSign, TrendingUp, Calendar, Filter, Download, CreditCard, Wallet, Smartphone, Globe, Search, X } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import CollectionChart from '@/components/CollectionChart';
@@ -29,6 +29,7 @@ export default function CollectionsPage() {
     const [statusFilter, setStatusFilter] = useState('all'); // all, paid, unpaid
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
 
     // Stats
     const [stats, setStats] = useState({
@@ -62,7 +63,7 @@ export default function CollectionsPage() {
         if (bills.length > 0 || !loading) {
             applyFilters();
         }
-    }, [bills, dateFilter, paymentModeFilter, statusFilter, startDate, endDate]);
+    }, [bills, dateFilter, paymentModeFilter, statusFilter, startDate, endDate, searchQuery]);
 
     useEffect(() => {
         if (!loading) {
@@ -196,6 +197,37 @@ export default function CollectionsPage() {
         // Status filter
         if (statusFilter !== 'all') {
             filtered = filtered.filter(bill => bill.status === statusFilter);
+        }
+
+        if (paymentModeFilter !== 'all') {
+            filtered = filtered.filter(bill =>
+                parseBillItems(bill.items || '').some(item =>
+                    item.paymentMethod.toLowerCase() === paymentModeFilter.toLowerCase()
+                )
+            );
+        }
+
+        const normalizedSearch = searchQuery.trim().toLowerCase();
+        if (normalizedSearch) {
+            filtered = filtered.filter(bill => {
+                const searchableValues = [
+                    bill._id,
+                    bill.appointmentId?.fullName,
+                    bill.appointmentId?.phone,
+                    bill.patientId?.fullName,
+                    bill.patientId?.phone,
+                    bill.guestPatient?.fullName,
+                    bill.guestPatient?.phone,
+                    bill.items,
+                    bill.totalAmount,
+                    bill.status,
+                    bill.billDate ? new Date(bill.billDate).toLocaleDateString('en-IN') : ''
+                ];
+
+                return searchableValues.some(value =>
+                    String(value || '').toLowerCase().includes(normalizedSearch)
+                );
+            });
         }
 
         setFilteredBills(filtered);
@@ -337,6 +369,7 @@ export default function CollectionsPage() {
         setStatusFilter('all');
         setStartDate('');
         setEndDate('');
+        setSearchQuery('');
     };
 
     if (loading) {
@@ -375,6 +408,28 @@ export default function CollectionsPage() {
                     <div className="flex items-center gap-2 mb-4">
                         <Filter size={20} className="text-gray-600" />
                         <h3 className="text-lg font-bold text-gray-800">Filters</h3>
+                    </div>
+
+                    <div className="relative mb-4">
+                        <Search size={18} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Patient, phone, service, bill ID, or amount"
+                            aria-label="Search collection records"
+                            className="w-full rounded-lg border border-gray-300 py-2.5 pl-10 pr-10 text-black placeholder:text-gray-400 focus:border-blue-500 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        />
+                        {searchQuery && (
+                            <button
+                                type="button"
+                                onClick={() => setSearchQuery('')}
+                                aria-label="Clear search"
+                                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-1 text-gray-500 hover:bg-gray-100 hover:text-gray-800"
+                            >
+                                <X size={18} />
+                            </button>
+                        )}
                     </div>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">

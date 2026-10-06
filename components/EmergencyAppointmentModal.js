@@ -1,6 +1,7 @@
 'use client';
 
 import { api } from '@/lib/api';
+import { TIME_SLOTS } from '@/lib/slotConfig';
 import { AlertTriangle, X } from 'lucide-react';
 import { useState } from 'react';
 
@@ -16,14 +17,7 @@ export default function EmergencyAppointmentModal({ onClose, onSuccess }) {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
 
-    const timeSlots = [
-        '10:30 AM - 11:30 AM',
-        '11:30 AM - 12:30 PM',
-        '12:30 PM - 1:30 PM',
-        '1:30 PM - 2:00 PM',
-        '4:30 PM - 5:30 PM',
-        '5:30 PM - 6:00 PM'
-    ];
+    const timeSlots = TIME_SLOTS.map(slot => slot.time);
 
     const consultationTypes = [
         { value: 'routine-checkup', label: 'Routine Checkup' },

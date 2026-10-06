@@ -15,15 +15,40 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
     // Initialize form when editing a bill
     useEffect(() => {
         if (editingBill) {
-            setSelectedPatient(editingBill.appointmentId);
+            setSelectedPatient(editingBill.patientId || editingBill.appointmentId);
             setBillDate(new Date(editingBill.billDate).toISOString().slice(0, 16));
-            setItems(editingBill.items || [{ service: '', amount: '', paymentMethod: 'cash' }]);
+            setItems(parseBillItems(editingBill.items));
             setStatus(editingBill.status || 'unpaid');
         } else {
             // Reset form for new bill
             resetForm();
         }
     }, [editingBill, isOpen]);
+
+    const parseBillItems = (storedItems) => {
+        if (Array.isArray(storedItems)) {
+            return storedItems;
+        }
+
+        if (typeof storedItems !== 'string') {
+            return [{ service: '', amount: '', paymentMethod: 'cash' }];
+        }
+
+        const values = storedItems.split(', ');
+        const parsedItems = [];
+        for (let index = 0; index + 2 < values.length; index += 3) {
+            const amount = Number(values[index + 1]);
+            if (values[index] && Number.isFinite(amount) && values[index + 2]) {
+                parsedItems.push({
+                    service: values[index],
+                    amount: String(amount),
+                    paymentMethod: values[index + 2]
+                });
+            }
+        }
+
+        return parsedItems.length ? parsedItems : [{ service: '', amount: '', paymentMethod: 'cash' }];
+    };
 
     const resetForm = () => {
         setSelectedPatient(null);
@@ -87,7 +112,6 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
         }
 
         const billData = {
-            patientId: selectedPatient._id,
             billDate: new Date(billDate).toISOString(),
             items: items.map(item => ({
                 service: item.service.trim(),
@@ -97,6 +121,10 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
             totalAmount: calculateTotal(),
             status: status
         };
+
+        if (!editingBill) {
+            billData.patientId = selectedPatient._id;
+        }
 
         onSave(billData);
     };

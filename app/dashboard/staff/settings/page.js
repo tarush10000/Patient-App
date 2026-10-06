@@ -6,6 +6,7 @@ import { Ban, LogOut, User, Shield } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
+import { TIME_SLOTS } from '@/lib/slotConfig';
 
 export default function StaffSettingsPage() {
     const router = useRouter();
@@ -280,14 +281,7 @@ function BlockSlotModal({ onClose, onSubmit }) {
         reason: ''
     });
 
-    const timeSlots = [
-        '10:30 AM - 11:30 AM',
-        '11:30 AM - 12:30 PM',
-        '12:30 PM - 1:30 PM',
-        '1:30 PM - 2:00 PM',
-        '4:30 PM - 5:30 PM',
-        '5:30 PM - 6:00 PM'
-    ];
+    const timeSlots = TIME_SLOTS.map(slot => slot.time);
 
     const handleSubmit = (e) => {
         e.preventDefault();

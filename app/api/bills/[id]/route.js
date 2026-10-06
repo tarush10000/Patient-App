@@ -12,7 +12,7 @@ export async function PATCH(request, { params }) {
 
         await connectDB();
         const { user } = authResult;
-        const { id } = params;
+        const { id } = await params;
 
         const bill = await Bill.findById(id);
 
@@ -67,14 +67,26 @@ export async function PUT(request, { params }) {
 
         await connectDB();
 
-        const { id } = params;
-        const { patientId, appointmentId, items, totalAmount, status, paidDate } = await request.json();
-        console.log("item--------->",items)
+        const { id } = await params;
+        const { patientId, appointmentId, items, totalAmount, status, paidDate, billDate } = await request.json();
 
         // Validate required fields
-        if (!items || !totalAmount) {
+        if (!Array.isArray(items) || items.length === 0 || !Number.isFinite(Number(totalAmount)) || Number(totalAmount) <= 0) {
             return NextResponse.json(
-                { error: 'Missing required fields' },
+                { error: 'Bill items and a valid total amount are required' },
+                { status: 400 }
+            );
+        }
+
+        const normalizedItems = items.map(item => ({
+            service: String(item.service || '').trim(),
+            amount: Number(item.amount),
+            paymentMethod: String(item.paymentMethod || '').trim()
+        }));
+
+        if (normalizedItems.some(item => !item.service || !Number.isFinite(item.amount) || item.amount <= 0 || !item.paymentMethod)) {
+            return NextResponse.json(
+                { error: 'Each bill item must have a service, valid amount, and payment method' },
                 { status: 400 }
             );
         }
@@ -90,15 +102,21 @@ export async function PUT(request, { params }) {
 
         // Prepare update data
         const updateData = {
-            items,
-            totalAmount,
+            items: normalizedItems.map(item =>
+                `${item.service}, ${item.amount}, ${item.paymentMethod}`
+            ).join(', '),
+            totalAmount: Number(totalAmount),
             status: status || 'unpaid',
             updatedAt: new Date()
         };
-            
-        updateData.items = items.map(item => 
-            `${item.service}, ${item.amount}, ${item.paymentMethod}`
-        ).join(', ');
+
+        if (paidDate) {
+            updateData.paidDate = paidDate;
+        }
+
+        if (billDate) {
+            updateData.billDate = billDate;
+        }
 
         // Update patientId if provided
         if (patientId) {

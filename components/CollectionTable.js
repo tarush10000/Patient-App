@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { FileText, User, Calendar, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 
 export default function CollectionTable({ bills, onEditBill, onViewBill }) {
@@ -8,6 +8,10 @@ export default function CollectionTable({ bills, onEditBill, onViewBill }) {
     const [sortOrder, setSortOrder] = useState('desc');
     const [currentPage, setCurrentPage] = useState(1);
     const itemsPerPage = 10;
+
+    useEffect(() => {
+        setCurrentPage(1);
+    }, [bills]);
 
     const parseBillItems = (itemsString) => {
         const itemsArray = itemsString.split(', ');
@@ -142,7 +146,7 @@ export default function CollectionTable({ bills, onEditBill, onViewBill }) {
                         <h3 className="text-lg font-bold text-gray-800">Detailed Collection Records</h3>
                     </div>
                     <span className="text-sm text-gray-600">
-                        Showing {startIndex + 1}-{Math.min(endIndex, sortedBills.length)} of {sortedBills.length} records
+                        Showing {sortedBills.length === 0 ? 0 : startIndex + 1}-{Math.min(endIndex, sortedBills.length)} of {sortedBills.length} records
                     </span>
                 </div>
             </div>
