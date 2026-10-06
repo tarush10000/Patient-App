@@ -1,7 +1,7 @@
 'use client';
 
+import { Calendar, ChevronDown, ChevronUp, Edit2, FileText, User } from 'lucide-react';
 import { useEffect, useState } from 'react';
-import { FileText, User, Calendar, ChevronDown, ChevronUp, Edit2 } from 'lucide-react';
 
 export default function CollectionTable({ bills, onEditBill, onViewBill }) {
     const [sortField, setSortField] = useState('billDate');

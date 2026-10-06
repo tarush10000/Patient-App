@@ -1,16 +1,16 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { DollarSign, TrendingUp, Calendar, Filter, Download, CreditCard, Wallet, Smartphone, Globe, Search, X } from 'lucide-react';
+import BillDetailModal from '@/components/BillDetailModal';
+import CollectionChart from '@/components/CollectionChart';
+import CollectionStats from '@/components/CollectionStats';
+import CollectionTable from '@/components/CollectionTable';
+import CreateBillModal from '@/components/CreateBillModal';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
-import CollectionChart from '@/components/CollectionChart';
-import CollectionTable from '@/components/CollectionTable';
-import CollectionStats from '@/components/CollectionStats';
-import CreateBillModal from '@/components/CreateBillModal';
-import BillDetailModal from '@/components/BillDetailModal';
 import { api } from '@/lib/api';
+import { Download, Filter, Search, X } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function CollectionsPage() {
     const router = useRouter();

@@ -1,8 +1,8 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Bill from '@/models/Bill';
 import { authenticate } from '@/middleware/auth';
 import Appointment from '@/models/Appointment';
+import Bill from '@/models/Bill';
+import { NextResponse } from 'next/server';
 
 // GET all bills
 export async function GET(request) {

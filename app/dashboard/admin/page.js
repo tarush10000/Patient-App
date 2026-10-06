@@ -1,11 +1,11 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { Users, Calendar, DollarSign, Clock, Ban } from 'lucide-react';
-import Header from '@/components/Header';
 import BottomNav from '@/components/BottomNav';
+import Header from '@/components/Header';
 import { api } from '@/lib/api';
 import { TIME_SLOTS } from '@/lib/slotConfig';
+import { Ban, Calendar, DollarSign, Users } from 'lucide-react';
+import { useEffect, useState } from 'react';
 
 export default function AdminPage() {
     const [users, setUsers] = useState([]);

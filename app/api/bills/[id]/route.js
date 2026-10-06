@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import connectDB from '@/lib/mongodb';
-import Bill from '@/models/Bill';
 import { authenticate } from '@/middleware/auth';
+import Bill from '@/models/Bill';
+import { NextResponse } from 'next/server';
 
 export async function PATCH(request, { params }) {
     try {

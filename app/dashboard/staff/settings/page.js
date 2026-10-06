@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
-import { Ban, LogOut, User, Shield } from 'lucide-react';
 import Header from '@/components/Header';
 import StaffBottomNav from '@/components/StaffBottomNav';
 import { api } from '@/lib/api';
 import { TIME_SLOTS } from '@/lib/slotConfig';
+import { Ban, LogOut, User } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useState } from 'react';
 
 export default function StaffSettingsPage() {
     const router = useRouter();
