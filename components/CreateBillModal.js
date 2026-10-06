@@ -12,11 +12,17 @@ export default function CreateBillModal({ isOpen, onClose, onSave, editingBill =
     const [status, setStatus] = useState('unpaid');
     const [errors, setErrors] = useState({});
 
+    const formatDateTimeLocal = (dateValue) => {
+        const date = new Date(dateValue);
+        const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+        return localDate.toISOString().slice(0, 16);
+    };
+
     // Initialize form when editing a bill
     useEffect(() => {
         if (editingBill) {
             setSelectedPatient(editingBill.patientId || editingBill.appointmentId);
-            setBillDate(new Date(editingBill.billDate).toISOString().slice(0, 16));
+            setBillDate(formatDateTimeLocal(editingBill.billDate));
             setItems(parseBillItems(editingBill.items));
             setStatus(editingBill.status || 'unpaid');
         } else {
