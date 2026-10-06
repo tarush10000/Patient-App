@@ -66,27 +66,36 @@ export async function POST(request) {
 
         await connectDB();
 
-        const { patientId, appointmentId, items, totalAmount, status, paidDate, guestPatient } = await request.json();
+        const { patientId, appointmentId, items, status, paidDate, guestPatient } = await request.json();
+        const submittedItems = Array.isArray(items)
+            ? items
+            : typeof items === 'string'
+                ? items.split(', ').reduce((parsed, value, index, values) => {
+                    if (index % 3 === 0 && values[index + 1] && values[index + 2]) {
+                        parsed.push({
+                            service: value,
+                            amount: values[index + 1],
+                            paymentMethod: values[index + 2]
+                        });
+                    }
+                    return parsed;
+                }, [])
+                : [];
 
-        if (!Array.isArray(items) || items.length === 0 || !Number.isFinite(Number(totalAmount)) || Number(totalAmount) <= 0) {
-            return NextResponse.json(
-                { error: 'Bill items and a valid total amount are required' },
-                { status: 400 }
-            );
-        }
-
-        const normalizedItems = items.map(item => ({
+        const normalizedItems = submittedItems.map(item => ({
             service: String(item.service || '').trim(),
             amount: Number(item.amount),
             paymentMethod: String(item.paymentMethod || '').trim()
         }));
 
-        if (normalizedItems.some(item => !item.service || !Number.isFinite(item.amount) || item.amount <= 0 || !item.paymentMethod)) {
+        if (normalizedItems.length === 0 || normalizedItems.some(item => !item.service || !Number.isFinite(item.amount) || item.amount <= 0 || !item.paymentMethod)) {
             return NextResponse.json(
-                { error: 'Each bill item must have a service, valid amount, and payment method' },
+                { error: 'Add at least one bill item with a service, positive amount, and payment method' },
                 { status: 400 }
             );
         }
+
+        const totalAmount = normalizedItems.reduce((total, item) => total + item.amount, 0);
 
         // Allow either patientId OR guestPatient
         if (!patientId && !guestPatient) {
@@ -101,7 +110,7 @@ export async function POST(request) {
             items: normalizedItems.map(item =>
                 `${item.service}, ${item.amount}, ${item.paymentMethod}`
             ).join(', '),
-            totalAmount: Number(totalAmount),
+            totalAmount,
             status: status || 'unpaid',
             createdBy: user._id
         };
